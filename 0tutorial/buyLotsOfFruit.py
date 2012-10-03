@@ -29,7 +29,7 @@ def buyLotsOfFruit(orderList):
     Returns cost of order
     """
     try:
-        totalCost = sum(map(lambda x: fruitPrices[x[0]] * x[1], orderList))
+        totalCost = sum([ fruitPrices[name] * quantity for name, quantity in orderList ])
         return totalCost
     except KeyError:
         print >> sys.stderr, "Fruit name not in price list"
