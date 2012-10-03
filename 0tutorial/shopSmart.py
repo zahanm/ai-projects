@@ -21,10 +21,10 @@ def shopSmart(orderList, fruitShops):
     """
         orderList: List of (fruit, numPound) tuples
         fruitShops: List of FruitShops
-    """    
-    "*** YOUR CODE HERE ***"
-    return None
-    
+    """
+    pricelists = [ (fruitShop.getPriceOfOrder(orderList), fruitShop) for fruitShop in fruitShops ]
+    return min(pricelists)[1]
+
 if __name__ == '__main__':
   "This code runs when you invoke the script from the command line"
   orders = [('apples',1.0), ('oranges',3.0)]
