@@ -176,7 +176,7 @@ class GameState:
     Returns a Grid of boolean wall indicator variables.
 
     Grids can be accessed via list notation, so to check
-    if there is food at (x,y), just call
+    if there is a wall at (x,y), just call
 
     walls = state.getWalls()
     if walls[x][y] == True: ...
