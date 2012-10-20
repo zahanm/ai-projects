@@ -8,7 +8,7 @@
 
 from util import manhattanDistance
 from game import Directions
-import random, util
+import random, util, math, itertools
 
 from game import Agent
 
@@ -69,6 +69,7 @@ class ReflexAgent(Agent):
     newPos = successorGameState.getPacmanPosition()
     oldFoodGrid = currentGameState.getFood()
     oldCapsules = currentGameState.getCapsules()
+    oldGhostStates = currentGameState.getGhostStates()
     newGhostStates = successorGameState.getGhostStates()
 
     """
@@ -82,11 +83,7 @@ class ReflexAgent(Agent):
     score = w[0] * score + w[1] * -df + w[2] * sum(dg) + w[3] * -dc
     """
 
-    # Is there a damn wall?
-    if successorGameState.getWalls()[newPos[0]][newPos[1]]:
-      return float("-inf")
-
-    w = [ 1.0, 10.0, 1.0, 100.0 ]
+    w = [ 1.0, 5.0, 50.0, 100.0 ]
 
     score = 0
 
@@ -96,13 +93,13 @@ class ReflexAgent(Agent):
     if len(oldFood) > 0:
       score += w[1] * -distanceToNearest(newPos, oldFood)
 
-    for state in newGhostStates:
-      if state.scaredTimer > 0:
-        score += w[2] * 100.0 / max(distance(newPos, state.getPosition()), 0.01)
-      elif state.getPosition() == newPos:
+    for oldState, newState in itertools.izip(oldGhostStates, newGhostStates):
+      if oldState.scaredTimer > 0:
+        score += w[2] * 20.0 / max(distance(newPos, oldState.getPosition()), 0.01)
+      elif newState.getPosition() == newPos:
         return float("-inf")
       else:
-        score -= w[2] * 1.0 / max(distance(newPos, state.getPosition()), 0.01)
+        score += w[2] * -1.0 / max(distance(newPos, newState.getPosition()), 0.01)
 
     if len(oldCapsules) > 0:
       score += w[3] * 1.0 / max(distanceToNearest(newPos, oldCapsules), 0.01)
