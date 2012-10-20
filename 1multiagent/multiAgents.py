@@ -12,6 +12,10 @@ import random, util
 
 from game import Agent
 
+##############################
+# Reflex Agent
+##############################
+
 class ReflexAgent(Agent):
   """
     A reflex agent chooses an action at each choice point by examining
@@ -63,12 +67,51 @@ class ReflexAgent(Agent):
     # Useful information you can extract from a GameState (pacman.py)
     successorGameState = currentGameState.generatePacmanSuccessor(action)
     newPos = successorGameState.getPacmanPosition()
-    oldFood = currentGameState.getFood()
+    oldFoodGrid = currentGameState.getFood()
+    oldCapsules = currentGameState.getCapsules()
     newGhostStates = successorGameState.getGhostStates()
-    newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
-    "*** YOUR CODE HERE ***"
-    return successorGameState.getScore()
+    """
+    Features to consider:
+    * score = score after moving
+    * df = distance to nearest food
+    * dg[] = distances to each ghost
+    * dc = distance to nearest capsule
+
+    Weighted combination for final evaluation
+    score = w[0] * score + w[1] * -df + w[2] * sum(dg) + w[3] * -dc
+    """
+
+    # Is there a damn wall?
+    if successorGameState.getWalls()[newPos[0]][newPos[1]]:
+      return float("-inf")
+
+    w = [ 1.0, 10.0, 1.0, 100.0 ]
+
+    score = 0
+
+    score += w[0] * successorGameState.getScore()
+
+    oldFood = betterGridToList(oldFoodGrid)
+    if len(oldFood) > 0:
+      score += w[1] * -distanceToNearest(newPos, oldFood)
+
+    for state in newGhostStates:
+      if state.scaredTimer > 0:
+        score += w[2] * 100.0 / max(distance(newPos, state.getPosition()), 0.01)
+      elif state.getPosition() == newPos:
+        return float("-inf")
+      else:
+        score -= w[2] * 1.0 / max(distance(newPos, state.getPosition()), 0.01)
+
+    if len(oldCapsules) > 0:
+      score += w[3] * 1.0 / max(distanceToNearest(newPos, oldCapsules), 0.01)
+
+    return score
+
+##############################
+# Multi-Agent Searchers
+##############################
 
 def scoreEvaluationFunction(currentGameState):
   """
@@ -100,6 +143,10 @@ class MultiAgentSearchAgent(Agent):
     self.evaluationFunction = util.lookup(evalFn, globals())
     self.depth = int(depth)
 
+##############################
+# Minimax Agent
+##############################
+
 class MinimaxAgent(MultiAgentSearchAgent):
   """
     Your minimax agent (question 2)
@@ -128,6 +175,10 @@ class MinimaxAgent(MultiAgentSearchAgent):
     "*** YOUR CODE HERE ***"
     util.raiseNotDefined()
 
+##############################
+# Alpha-Beta Agent
+##############################
+
 class AlphaBetaAgent(MultiAgentSearchAgent):
   """
     Your minimax agent with alpha-beta pruning (question 3)
@@ -139,6 +190,10 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     """
     "*** YOUR CODE HERE ***"
     util.raiseNotDefined()
+
+##############################
+# Expectimax Agent
+##############################
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
   """
@@ -155,6 +210,10 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
     "*** YOUR CODE HERE ***"
     util.raiseNotDefined()
 
+####################################
+# State based Evalutation Function
+####################################
+
 def betterEvaluationFunction(currentGameState):
   """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
@@ -168,3 +227,29 @@ def betterEvaluationFunction(currentGameState):
 # Abbreviation
 better = betterEvaluationFunction
 
+##############################
+# Helpers
+# - graph traversal
+##############################
+
+def distance(origin, dest):
+  """
+  Uses simple manhatten distance for now
+  Will use A* search in the future
+  """
+  return util.manhattanDistance(origin, dest)
+
+def distanceToNearest(origin, dests):
+  """
+  Linear search algorithm for now
+  Will use something smarter, A* again?
+  """
+  return min([ distance(origin, d) for d in dests ])
+
+def betterGridToList(grid):
+  l = []
+  for i in xrange(grid.width):
+    for j in xrange(grid.height):
+      if grid[i][j]:
+        l.append((i,j))
+  return l
