@@ -169,7 +169,28 @@ class MinimaxAgent(MultiAgentSearchAgent):
       gameState.getNumAgents():
         Returns the total number of agents in the game
     """
-    "*** YOUR CODE HERE ***"
+    def minimax(state, agentIndex):
+      if state.isWin() or state.isLose():
+        return Directions.STOP
+      if agentIndex == 0:
+        v, maxaction = float("-inf"), Directions.STOP
+        for a in state.getLegalActions(agentIndex):
+          reward = self.evaluationFunction(state)
+          nextState = state.generateSuccessor(agentIndex, a)
+          if v < reward + minimax(nextState, agentIndex):
+            v = reward + minimax(nextState, agentIndex)
+            maxaction = a
+        return maxaction
+      else:
+        v, minaction = float("inf"), Directions.STOP
+        for a in state.getLegalActions(agentIndex):
+          reward = self.evaluationFunction(state)
+          nextState = state.generateSuccessor(agentIndex, a)
+          if v > reward + minimax(nextState, agentIndex):
+            v = reward + minimax(nextState, agentIndex)
+            minaction = a
+        return minaction
+
     util.raiseNotDefined()
 
 ##############################
