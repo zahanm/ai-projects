@@ -216,8 +216,48 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     """
       Returns the minimax action using self.depth and self.evaluationFunction
     """
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    def minimaxAlphaBeta(state, agent, depth, alpha, beta):
+      if state.isWin() or state.isLose():
+        return (0, Directions.STOP)
+      if agent == state.getNumAgents():
+        agent = 0
+        depth -= 1
+        if depth <= 0:
+          return (0, Directions.STOP)
+      currentScore = self.evaluationFunction(state)
+      if agent == 0:
+        # pacman's move
+        v, maxaction = float("-inf"), Directions.STOP
+        for action in state.getLegalActions(agent):
+          nextState = state.generateSuccessor(agent, action)
+          reward = self.evaluationFunction(nextState) - currentScore
+          mnm = minimaxAlphaBeta(nextState, agent + 1, depth, alpha, beta)
+          if (reward + mnm[0]) > v:
+            v = reward + mnm[0]
+            maxaction = action
+          if v >= beta:
+            return (v, maxaction)
+          if v > alpha:
+            alpha = v
+        return (v, maxaction)
+      else:
+        # it's a ghost's move
+        v, minaction = float("inf"), Directions.STOP
+        for action in state.getLegalActions(agent):
+          nextState = state.generateSuccessor(agent, action)
+          reward = self.evaluationFunction(nextState) - currentScore
+          mnm = minimaxAlphaBeta(nextState, agent + 1, depth, alpha, beta)
+          if (reward + mnm[0]) < v:
+            v = reward + mnm[0]
+            minaction = action
+          if v <= alpha:
+            return (v, minaction)
+          if v < beta:
+            beta = v
+        return (v, minaction)
+    v, maxaction = minimaxAlphaBeta(gameState, 0, self.depth,
+      float("-inf"), float("inf"))
+    return maxaction
 
 ##############################
 # Expectimax Agent
