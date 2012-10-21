@@ -83,6 +83,8 @@ class ReflexAgent(Agent):
 
     Weighted combination for final evaluation
     score = w[0] * score + w[1] * -df + w[2] * sum(dg) + w[3] * -dc
+
+    read more details in betterEvaluationFunction section
     """
 
     w = [ 1.0, 5.0, 50.0, 100.0 ]
@@ -384,10 +386,13 @@ def betterEvaluationFunction(currentGameState):
 
   score += w[4] * -len(food)
 
+  # scared ghosts are like a really valuable food
+  scaredGhosts = \
+    [ ghost.getPosition() for ghost in ghostStates if ghost.scaredTimer > 0]
+  score += w[2] * 10.0 / max(distanceToNearest(pacman, scaredGhosts), 0.001)
+
   for ghost in ghostStates:
-    if ghost.scaredTimer > 0:
-      score += w[2] * 10.0 / max(distance(pacman, ghost.getPosition()), 0.001)
-    else:
+    if ghost.scaredTimer <= 0:
       score += w[2] * -1.0 / max(distance(pacman, ghost.getPosition()), 0.001)
 
   # I don't want to use private data, but I don't see another way to tell
