@@ -10,6 +10,8 @@ from util import manhattanDistance
 from game import Directions
 import random, util, math, itertools
 
+import sys
+
 from game import Agent
 
 ##############################
@@ -317,11 +319,86 @@ def betterEvaluationFunction(currentGameState):
   """
     Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
     evaluation function (question 5).
-
-    DESCRIPTION: <write something here so we know what you did>
   """
-  "*** YOUR CODE HERE ***"
-  util.raiseNotDefined()
+
+  pacman = currentGameState.getPacmanPosition()
+  foodGrid = currentGameState.getFood()
+  capsules = currentGameState.getCapsules()
+  ghostStates = currentGameState.getGhostStates()
+
+  """
+  Features to consider:
+  * getScore() = score after moving
+  * df = distance to nearest food
+  * dg[] = distances to each ghost
+  * dc = distance to nearest capsule
+  * af = amount of food left on board
+  * eaten = ate a scared ghost
+
+  Weighted combination for final evaluation
+  score = w[0] * score + w[1] * -df + w[2] * sum(dg) + w[3] * -dc + w[4] * -af
+  + w[5] * eaten
+
+  Pretty straightforward ideas here, used most in part 1 too.
+
+  - score takes into account many features, so though it interfered with my
+  tuning I didn't get rid of it entirely
+
+  - distance to nearest food is important to prevent the smart yellow ball
+  from staying put in a safe zone and not seeking out food in dangerous
+  situations
+
+  - distances to ghosts are important naturally. I started with just using the
+  negation function to model this feature. But it actually tuns out you really
+  don't care if the ghost is 10 or 11 steps away. You DO care if it's 1 or 2.
+  So the (weighted) reciprocal made mode sense.
+
+  - capsules play an important part of strategy. If the ghosts are always
+  scared while you get the food, you are almost guaranteed a win. So I make
+  butterball here go for the capsules first
+
+  - amount of food left on the board. Less is better. Duh.
+
+  - eaten => I know this is taken a bit into account by teh overall score, but
+  I *really* want butterball here to eat the ghosts. So I upweighted it.
+
+  The weights were calibrated through experimentation. I would just watch the
+  values of the components change as a game went on, trying to incorporate
+  my intuitions into the score.
+
+  I get pretty good results without putting all that much smarts into it on
+  smallClassic with 2 ghosts.
+  Win rate ~= 8/10
+  Score ~= 1200
+  """
+
+  w = [ 0.5, 5.0, 20.0, 100.0, 10.0, 200.0 ]
+
+  score = 0
+
+  score += w[0] * currentGameState.getScore()
+
+  food = betterGridToList(foodGrid)
+  if len(food) > 0:
+    score += w[1] * -distanceToNearest(pacman, food)
+
+  score += w[4] * -len(food)
+
+  for ghost in ghostStates:
+    if ghost.scaredTimer > 0:
+      score += w[2] * 10.0 / max(distance(pacman, ghost.getPosition()), 0.001)
+    else:
+      score += w[2] * -1.0 / max(distance(pacman, ghost.getPosition()), 0.001)
+
+  # I don't want to use private data, but I don't see another way to tell
+  # pacman to eat the damn ghosts
+  for agent in xrange(1, currentGameState.getNumAgents()):
+    score += w[5] * (1 if currentGameState.data._eaten[agent] else 0)
+
+  if len(capsules) > 0:
+    score += w[3] * 1.0 / max(distanceToNearest(pacman, capsules), 0.01)
+
+  return score
 
 # Abbreviation
 better = betterEvaluationFunction
