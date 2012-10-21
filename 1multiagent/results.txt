@@ -1,0 +1,18 @@
+
+My results with the better evaluation function
+
+[zahanm@zoster 1multiagent] (master) $ python pacman.py -l smallClassic -p ExpectimaxAgent --frameTime 0 -a evalFn=better,depth=2 -q -n 10
+Pacman emerges victorious! Score: 1287
+Pacman emerges victorious! Score: 1189
+Pacman emerges victorious! Score: 1481
+Pacman emerges victorious! Score: 1624
+Pacman died! Score: -116
+Pacman emerges victorious! Score: 1429
+Pacman emerges victorious! Score: 1318
+Pacman emerges victorious! Score: 1328
+Pacman died! Score: 454
+Pacman emerges victorious! Score: 1638
+Average Score: 1163.2
+Scores:        1287, 1189, 1481, 1624, -116, 1429, 1318, 1328, 454, 1638
+Win Rate:      8/10 (0.80)
+Record:        Win, Win, Win, Win, Loss, Win, Win, Win, Loss, Win
