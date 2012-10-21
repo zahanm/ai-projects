@@ -169,29 +169,39 @@ class MinimaxAgent(MultiAgentSearchAgent):
       gameState.getNumAgents():
         Returns the total number of agents in the game
     """
-    def minimax(state, agentIndex):
+    def minimax(state, agent, depth):
       if state.isWin() or state.isLose():
-        return Directions.STOP
-      if agentIndex == 0:
+        return (0, Directions.STOP)
+      if agent == state.getNumAgents():
+        agent = 0
+        depth -= 1
+        if depth <= 0:
+          return (0, Directions.STOP)
+      currentScore = self.evaluationFunction(state)
+      if agent == 0:
+        # pacman's move
         v, maxaction = float("-inf"), Directions.STOP
-        for a in state.getLegalActions(agentIndex):
-          reward = self.evaluationFunction(state)
-          nextState = state.generateSuccessor(agentIndex, a)
-          if v < reward + minimax(nextState, agentIndex):
-            v = reward + minimax(nextState, agentIndex)
-            maxaction = a
-        return maxaction
+        for action in state.getLegalActions(agent):
+          nextState = state.generateSuccessor(agent, action)
+          reward = self.evaluationFunction(nextState) - currentScore
+          mnm = minimax(nextState, agent + 1, depth)
+          if (reward + mnm[0]) > v:
+            v = reward + mnm[0]
+            maxaction = action
+        return (v, maxaction)
       else:
+        # it's a ghost's move
         v, minaction = float("inf"), Directions.STOP
-        for a in state.getLegalActions(agentIndex):
-          reward = self.evaluationFunction(state)
-          nextState = state.generateSuccessor(agentIndex, a)
-          if v > reward + minimax(nextState, agentIndex):
-            v = reward + minimax(nextState, agentIndex)
-            minaction = a
-        return minaction
-
-    util.raiseNotDefined()
+        for action in state.getLegalActions(agent):
+          nextState = state.generateSuccessor(agent, action)
+          reward = self.evaluationFunction(nextState) - currentScore
+          mnm = minimax(nextState, agent + 1, depth)
+          if (reward + mnm[0]) < v:
+            v = reward + mnm[0]
+            minaction = action
+        return (v, minaction)
+    v, maxaction = minimax(gameState, 0, self.depth)
+    return maxaction
 
 ##############################
 # Alpha-Beta Agent
