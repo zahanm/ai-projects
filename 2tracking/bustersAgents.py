@@ -14,11 +14,11 @@ import inference
 
 class BustersAgent:
   "An agent that tracks and displays its beliefs about ghost positions."
-  
+
   def __init__( self, index = 0, inference = "ExactInference", ghostAgents = None ):
     inferenceType = util.lookup(inference, globals())
     self.inferenceModules = [inferenceType(a) for a in ghostAgents]
-    
+
   def registerInitialState(self, gameState):
     "Initializes beliefs and inference modules"
     import __main__
@@ -26,7 +26,7 @@ class BustersAgent:
     for inference in self.inferenceModules: inference.initialize(gameState)
     self.ghostBeliefs = [inf.getBeliefDistribution() for inf in self.inferenceModules]
     self.firstMove = True
-    
+
   def observationFunction(self, gameState):
     "Removes the ghost states from the gameState"
     agents = gameState.data.agentStates
@@ -49,14 +49,14 @@ class BustersAgent:
 
 class BustersKeyboardAgent(BustersAgent, KeyboardAgent):
   "An agent controlled by the keyboard that displays beliefs about ghost positions."
-  
+
   def __init__(self, index = 0, inference = "ExactInference", ghostAgents = None):
     KeyboardAgent.__init__(self, index)
     BustersAgent.__init__(self, index, inference, ghostAgents)
-    
+
   def getAction(self, gameState):
     return BustersAgent.getAction(self, gameState)
-    
+
   def chooseAction(self, gameState):
     return KeyboardAgent.getAction(self, gameState)
 
@@ -66,24 +66,24 @@ from game import Directions
 
 class GreedyBustersAgent(BustersAgent):
   "An agent that charges the closest ghost."
-  
+
   def registerInitialState(self, gameState):
     "Pre-computes the distance between every two points."
     BustersAgent.registerInitialState(self, gameState)
     self.distancer = Distancer(gameState.data.layout, False)
-    
+
   def chooseAction(self, gameState):
     """
-    First computes the most likely position of each ghost that 
-    has not yet been captured, then chooses an action that brings 
+    First computes the most likely position of each ghost that
+    has not yet been captured, then chooses an action that brings
     Pacman closer to the closest ghost (in maze distance!).
-    
+
     To find the maze distance between any two positions, use:
     self.distancer.getDistance(pos1, pos2)
-    
+
     To find the successor position of a position after an action:
     successorPosition = Actions.getSuccessor(position, action)
-    
+
     livingGhostPositionDistributions, defined below, is a list of
     util.Counter objects equal to the position belief distributions
     for each of the ghosts that are still alive.  It is defined based
@@ -99,7 +99,7 @@ class GreedyBustersAgent(BustersAgent):
          of the ghosts (including ghosts that are not alive).  The
          indices into this list should be 1 less than indices into the
          gameState.getLivingGhosts() list.
-     
+
     You may remove Directions.STOP from the list of available actions.
     """
     pacmanPosition = gameState.getPacmanPosition()
