@@ -125,7 +125,9 @@ class ExactInference(InferenceModule):
     = exp(0) - exp(-d) + exp(0) - exp(-d)
     = 2 * ( 1 - exp(-d) )
     """
-    pTrueNorm = 2 * (1 - math.exp(-MAX_DIST_DELTA))
+    # pTrueNorm = 2 * (1 - math.exp(-MAX_DIST_DELTA))
+    # above was having numerical errors
+    pTrueNorm = sum(map(lambda x: math.exp(-abs(x)), range(-7, 8)))
 
     allPossible = util.Counter()
     for p in self.legalPositions:
@@ -185,7 +187,18 @@ class ExactInference(InferenceModule):
           in the gameState with a call to self.setGhostPosition above.
     """
 
-    "*** YOUR CODE HERE ***"
+    oldBeliefs = self.beliefs
+    self.beliefs = util.Counter()
+
+    for oldPos, oldProb in oldBeliefs.iteritems():
+      if oldProb > 0:
+        distribution = \
+          self.getPositionDistribution(self.setGhostPosition(gameState, oldPos))
+        # there isn't a multiplyAll() function
+        distribution.divideAll(1.0 / oldProb)
+        self.beliefs += distribution
+
+    self.beliefs.normalize()
 
   def getBeliefDistribution(self):
     return self.beliefs
