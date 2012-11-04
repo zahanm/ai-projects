@@ -418,12 +418,49 @@ class JointParticleFilter:
       2) When all particles receive 0 weight, they should be recreated from the
           prior distribution by calling initializeParticles.
     """
-    pacmanPosition = gameState.getPacmanPosition()
+    pacmanPos = gameState.getPacmanPosition()
     noisyDistances = gameState.getNoisyGhostDistances()
     if len(noisyDistances) < self.numGhosts: return
     emissionModels = [busters.getObservationDistribution(dist) for dist in noisyDistances]
 
-    "*** YOUR CODE HERE ***"
+    # put ghosts in jail
+    jailed = [ noisy == 999 for noisy in noisyDistances ]
+
+    pTrueNorm = sum(map(lambda x: math.exp(-abs(x)), range(-7, 8)))
+
+    # old beliefs over particles
+    oldBeliefs = util.normalize(self.particles)
+    beliefs = [ util.Counter() ] * self.numGhosts
+
+    for assignment, oldProb in oldBeliefs.iteritems():
+      for g in xrange(self.numGhosts):
+        if jailed[g]:
+          continue
+        trueDistance = util.manhattanDistance(assignment[g], pacmanPos)
+        delta = abs(trueDistance - noisyDistances[g])
+        """
+        P(pos | oldPos) in denominator gets calculated automatically
+        in normalization
+        """
+        if emissionModels[g][trueDistance] > 0 and delta <= MAX_DIST_DELTA:
+          pTrue = math.exp( -delta ) / pTrueNorm
+          beliefs[g][assignment[g]] = \
+            oldProb * emissionModels[g][trueDistance] * pTrue
+
+    if any([ beliefs[g].totalCount() == 0 for g in xrange(self.numGhosts) ]):
+      self.initializeParticles()
+      return
+
+    perGhostParticles = [ None ] * self.numGhosts
+    for g in xrange(self.numGhosts):
+      if (jailed[g]):
+        jailLocation = (2 * g + 1, 1)
+        perGhostParticles[g] = [ jailLocation ] * self.numParticles
+        continue
+      beliefs[g].normalize()
+      perGhostParticles[g] = \
+        nSampleCounter(beliefs[g], self.numParticles, aslist=True)
+    self.particles = CounterFromIterable(itertools.izip(*perGhostParticles))
 
   def getBeliefDistribution(self):
     return util.normalize(self.particles)
