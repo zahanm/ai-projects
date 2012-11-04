@@ -364,7 +364,7 @@ def sample(distribution, values = None):
   if sum(distribution) != 1:
     distribution = normalize(distribution)
   choice = random.random()
-  i, total= 0, distribution[0]
+  i, total = 0, distribution[0]
   while choice > total:
     i += 1
     total += distribution[i]

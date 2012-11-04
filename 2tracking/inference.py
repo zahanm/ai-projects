@@ -129,9 +129,8 @@ class ExactInference(InferenceModule):
     # above was having numerical errors
     pTrueNorm = sum(map(lambda x: math.exp(-abs(x)), range(-7, 8)))
 
-    allPossible = util.Counter()
-    for p in self.legalPositions:
-      trueDistance = util.manhattanDistance(p, pacmanPosition)
+    for pos in self.beliefs:
+      trueDistance = util.manhattanDistance(pos, pacmanPosition)
       """
       use bayes rule to get
       P( true | noisy ) = P( noisy | true ) * P( true ) / P( noisy )
@@ -139,10 +138,11 @@ class ExactInference(InferenceModule):
       """
       if emissionModel[trueDistance] > 0:
         pTrue = math.exp( -abs(trueDistance - noisyDistance) ) / pTrueNorm
-        allPossible[p] = emissionModel[trueDistance] * pTrue
-    allPossible.normalize()
+        self.beliefs[pos] = self.beliefs[pos] * emissionModel[trueDistance] * pTrue
+      else:
+        self.beliefs[pos] = 0
 
-    self.beliefs = allPossible
+    self.beliefs.normalize()
 
   def elapseTime(self, gameState):
     """
@@ -228,19 +228,20 @@ class ParticleFilter(InferenceModule):
 
     pTrueNorm = sum(map(lambda x: math.exp(-abs(x)), range(-7, 8)))
 
-    allPossible = util.Counter()
-    for p in self.legalPositions:
-      trueDistance = util.manhattanDistance(p, pacmanPosition)
+    for pos in self.beliefs:
+      trueDistance = util.manhattanDistance(pos, pacmanPos)
       """
       use bayes rule to get P( true | noisy )
       See ExactInference#observe
       """
       if emissionModel[trueDistance] > 0:
         pTrue = math.exp( -abs(trueDistance - noisyDistance) ) / pTrueNorm
-        allPossible[p] = emissionModel[trueDistance] * pTrue
-    allPossible.normalize()
+        self.beliefs[pos] = self.beliefs[pos] * emissionModel[trueDistance] * pTrue
+      else:
+        self.beliefs[pos] = 0
+    self.beliefs.normalize()
 
-    self.beliefs = nSampleCounter(allPossible, self.numParticles)
+    self.beliefs = nSampleCounter(self.beliefs, self.numParticles)
 
   def elapseTime(self, gameState):
     """
@@ -254,16 +255,26 @@ class ParticleFilter(InferenceModule):
     its previous position (oldPos) as well as Pacman's current
     position.
     """
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+
+    oldBeliefs = self.beliefs
+    self.beliefs = util.Counter()
+
+    for oldPos, oldProb in oldBeliefs.iteritems():
+      if oldProb > 0:
+        dist = \
+          self.getPositionDistribution(self.setGhostPosition(gameState, oldPos))
+        # there isn't a multiplyAll() function
+        dist.divideAll(1.0 / oldProb)
+        self.beliefs += dist
+
+    self.beliefs.normalize()
 
   def getBeliefDistribution(self):
     """
     Return the agent's current belief state, a distribution over
     ghost locations conditioned on all evidence and time passage.
     """
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    return self.beliefs
 
 class MarginalInference(InferenceModule):
   "A wrapper around the JointInference module that returns marginal beliefs about ghosts."
@@ -416,18 +427,22 @@ def setGhostPositions(gameState, ghostPositions):
   return gameState
 
 def nSampleCounter(distribution, n):
-  if sum(distribution) != 1:
-    distribution = util.normalize(distribution)
+  if distribution.totalCount() != 1:
+    distribution.normalize()
+  if n > len(distribution.keys()):
+    return distribution
   rand = [ random.random() for i in xrange(n) ]
   rand.sort()
   samples = util.Counter()
-  keys = distribution.keys()
+  pairs = distribution.items()
+  keys = [ k for k,v in pairs ]
+  values = [ v for k,v in pairs ]
   samplePos, distPos, cdf = 0, 0, distribution[0]
   while samplePos < n:
     if rand[samplePos] < cdf:
       samplePos += 1
-      samples[keys[distPos]] = distribution[keys[distPos]]
+      samples[ keys[distPos] ] = values[distPos]
     else:
       distPos += 1
-      cdf += distribution[keys[distPos]]
+      cdf += values[distPos]
   return samples
