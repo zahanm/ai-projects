@@ -55,12 +55,12 @@ def begin_graphics(width=640, height=480, color=formatColor(0, 0, 0), title=None
     if _root_window is not None:
         # Lose the window.
         _root_window.destroy()
-        
+
     # Save the canvas size parameters
     _canvas_xs, _canvas_ys = width - 1, height - 1
     _canvas_x, _canvas_y = 0, _canvas_ys
     _bg_color = color
-    
+
     # Create the root window
     _root_window = Tkinter.Tk()
     _root_window.protocol('WM_DELETE_WINDOW', _destroy_window)
@@ -121,12 +121,12 @@ def wait_for_click():
       val = _ctrl_leftclick_loc
       _ctrl_leftclick_loc = None
       return val, 'ctrl_left'
-    sleep(0.05)  
+    sleep(0.05)
 
 def draw_background():
     corners = [(0,0), (0, _canvas_ys), (_canvas_xs, _canvas_ys), (_canvas_xs, 0)]
     polygon(corners, _bg_color, fillColor=_bg_color, filled=True, smoothed=False)
-    
+
 def _destroy_window(event=None):
     sys.exit(0)
 #    global _root_window
@@ -139,7 +139,7 @@ def end_graphics():
     try:
       try:
         sleep(1)
-        if _root_window != None: 
+        if _root_window != None:
           _root_window.destroy()
       except SystemExit, e:
         print 'Ending graphics raised an exception:', e
@@ -163,10 +163,10 @@ def polygon(coords, outlineColor, fillColor=None, filled=1, smoothed=1, behind=0
   if fillColor == None: fillColor = outlineColor
   if filled == 0: fillColor = ""
   poly = _canvas.create_polygon(c, outline=outlineColor, fill=fillColor, smooth=smoothed, width=width)
-  if behind > 0:    
+  if behind > 0:
     _canvas.tag_lower(poly, behind) # Higher should be more visible
   return poly
-  
+
 def square(pos, r, color, filled=1, behind=0):
   x, y = pos
   coords = [(x - r, y - r), (x + r, y - r), (x + r, y + r), (x - r, y + r)]
@@ -189,14 +189,14 @@ def image(pos, file="../../blueghost.gif"):
     x, y = pos
     # img = PhotoImage(file=file)
     return _canvas.create_image(x, y, image = Tkinter.PhotoImage(file=file), anchor = Tkinter.NW)
-    
-    
+
+
 def refresh():
       _canvas.update_idletasks()
-                                                    
+
 def moveCircle(id, pos, r, endpoints=None):
     global _canvas_x, _canvas_y
-    
+
     x, y = pos
 #    x0, x1 = x - r, x + r + 1
 #    y0, y1 = y - r, y + r + 1
@@ -213,7 +213,7 @@ def moveCircle(id, pos, r, endpoints=None):
 
 def edit(id, *args):
     _canvas.itemconfigure(id, **dict(args))
-    
+
 def text(pos, color, contents, font='Helvetica', size=12, style='normal', anchor="nw"):
     global _canvas_x, _canvas_y
     x, y = pos
@@ -261,7 +261,7 @@ def _keyrelease(event):
     except:
       pass
     _got_release = 1
-    
+
 def remap_arrows(event):
     # TURN ARROW PRESSES INTO LETTERS (SHOULD BE IN KEYBOARD AGENT)
     if event.char in ['a', 's', 'd', 'w']:
@@ -287,7 +287,7 @@ def keys_pressed(d_o_e=Tkinter.tkinter.dooneevent,
     if _got_release:
       d_o_e(d_w)
     return _keysdown.keys()
-  
+
 def keys_waiting():
   global _keyswaiting
   keys = _keyswaiting.keys()
@@ -320,53 +320,53 @@ def move_to(object, x, y=None,
             d_w=Tkinter.tkinter.DONT_WAIT):
     if y is None:
         try: x, y = x
-        except: raise  'incomprehensible coordinates' 
-        
+        except: raise  'incomprehensible coordinates'
+
     horiz = True
     newCoords = []
     current_x, current_y = _canvas.coords(object)[0:2] # first point
     for coord in  _canvas.coords(object):
-      if horiz:  
+      if horiz:
         inc = x - current_x
-      else:      
+      else:
         inc = y - current_y
       horiz = not horiz
-      
+
       newCoords.append(coord + inc)
-    
+
     _canvas.coords(object, *newCoords)
     d_o_e(d_w)
-    
+
 def move_by(object, x, y=None,
             d_o_e=Tkinter.tkinter.dooneevent,
             d_w=Tkinter.tkinter.DONT_WAIT):
     if y is None:
         try: x, y = x
-        except: raise Exception, 'incomprehensible coordinates' 
-    
+        except: raise Exception, 'incomprehensible coordinates'
+
     horiz = True
     newCoords = []
     for coord in  _canvas.coords(object):
-      if horiz:  
+      if horiz:
         inc = x
-      else:      
+      else:
         inc = y
       horiz = not horiz
-      
+
       newCoords.append(coord + inc)
-      
+
     _canvas.coords(object, *newCoords)
     d_o_e(d_w)
-    
+
 def writePostscript(filename):
-  "Writes the current canvas to a postscript file."    
+  "Writes the current canvas to a postscript file."
   psfile = file(filename, 'w')
   psfile.write(_canvas.postscript(pageanchor='sw',
-                   y='0.c', 
+                   y='0.c',
                    x='0.c'))
   psfile.close()
-  
-ghost_shape = [                
+
+ghost_shape = [
     (0, - 0.5),
     (0.25, - 0.75),
     (0.5, - 0.5),
