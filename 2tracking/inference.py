@@ -215,14 +215,32 @@ class ParticleFilter(InferenceModule):
   def initializeUniformly(self, gameState, numParticles=300):
     "Initializes a list of particles."
     self.numParticles = numParticles
-    "*** YOUR CODE HERE ***"
+    # will keep track of just the particles
+    self.beliefs = util.Counter()
+    for p in self.legalPositions: self.beliefs[p] += 1.0
+    self.beliefs.normalize()
 
   def observe(self, observation, gameState):
     "Update beliefs based on the given distance observation."
-    emissionModel = busters.getObservationDistribution(observation)
-    pacmanPosition = gameState.getPacmanPosition()
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    noisyDistance = observation
+    emissionModel = busters.getObservationDistribution(noisyDistance)
+    pacmanPos = gameState.getPacmanPosition()
+
+    pTrueNorm = sum(map(lambda x: math.exp(-abs(x)), range(-7, 8)))
+
+    allPossible = util.Counter()
+    for p in self.legalPositions:
+      trueDistance = util.manhattanDistance(p, pacmanPosition)
+      """
+      use bayes rule to get P( true | noisy )
+      See ExactInference#observe
+      """
+      if emissionModel[trueDistance] > 0:
+        pTrue = math.exp( -abs(trueDistance - noisyDistance) ) / pTrueNorm
+        allPossible[p] = emissionModel[trueDistance] * pTrue
+    allPossible.normalize()
+
+    self.beliefs = nSampleCounter(allPossible, self.numParticles)
 
   def elapseTime(self, gameState):
     """
@@ -397,3 +415,19 @@ def setGhostPositions(gameState, ghostPositions):
     gameState.data.agentStates[index + 1] = game.AgentState(conf, False)
   return gameState
 
+def nSampleCounter(distribution, n):
+  if sum(distribution) != 1:
+    distribution = util.normalize(distribution)
+  rand = [ random.random() for i in xrange(n) ]
+  rand.sort()
+  samples = util.Counter()
+  keys = distribution.keys()
+  samplePos, distPos, cdf = 0, 0, distribution[0]
+  while samplePos < n:
+    if rand[samplePos] < cdf:
+      samplePos += 1
+      samples[keys[distPos]] = distribution[keys[distPos]]
+    else:
+      distPos += 1
+      cdf += distribution[keys[distPos]]
+  return samples
