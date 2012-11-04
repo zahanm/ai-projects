@@ -216,7 +216,9 @@ class ParticleFilter(InferenceModule):
     "Initializes a list of particles."
     self.numParticles = numParticles
     # really using it as a Integer Count for particles
-    self.particles = CounterFromIterable(self.legalPositions)
+    self.particles = util.Counter()
+    for i in xrange(self.numParticles):
+      self.particles[ random.choice(self.legalPositions) ] += 1
 
   def observe(self, observation, gameState):
     "Update beliefs based on the given distance observation."
