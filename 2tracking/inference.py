@@ -11,6 +11,7 @@ import random
 import busters
 import game
 import math
+import itertools
 
 # Constants
 # ---------
@@ -326,9 +327,11 @@ class JointParticleFilter:
 
   def initializeParticles(self):
     "Initializes particles randomly.  Each particle is a tuple of ghost positions."
-    self.particles = []
-    for i in range(self.numParticles):
-      self.particles.append(tuple([random.choice(self.legalPositions) for j in range(self.numGhosts)]))
+    self.particles = util.Counter()
+    for i in xrange(self.numParticles):
+      pos = \
+        [ random.choice(self.legalPositions) for ghost in xrange(self.numGhosts) ]
+      self.particles[tuple(pos)] += 1
 
   def addGhostAgent(self, agent):
     "Each ghost agent is registered separately and stored (in case they are different)."
@@ -375,12 +378,23 @@ class JointParticleFilter:
           The ghost agent you are meant to supply is self.ghostAgents[ghostIndex-1],
           but in this project all ghost agents are always the same.
     """
-    newParticles = []
-    for oldParticle in self.particles:
-      newParticle = list(oldParticle) # A list of ghost positions
-      "*** YOUR CODE HERE ***"
-      newParticles.append(tuple(newParticle))
-    self.particles = newParticles
+    oldBeliefs = util.normalize(self.particles)
+    beliefs = [ util.Counter() ] * self.numGhosts
+
+    for assignment, oldProb in oldBeliefs.iteritems():
+      pretendState = setGhostPositions(gameState, assignment)
+      for g in xrange(self.numGhosts):
+        dist = \
+          getPositionDistributionForGhost(pretendState, g + 1, self.ghostAgents[g])
+        # there isn't a multiplyAll() function
+        dist.divideAll(1.0 / oldProb)
+        beliefs[g] += dist
+
+    perGhostParticles = [ None ] * self.numGhosts
+    for g in xrange(self.numGhosts):
+      perGhostParticles[g] = \
+        nSampleCounter(beliefs[g], self.numParticles, aslist=True)
+    self.particles = CounterFromIterable(itertools.izip(*perGhostParticles))
 
   def observeState(self, gameState):
     """
@@ -412,10 +426,7 @@ class JointParticleFilter:
     "*** YOUR CODE HERE ***"
 
   def getBeliefDistribution(self):
-    dist = util.Counter()
-    for part in self.particles: dist[part] += 1
-    dist.normalize()
-    return dist
+    return util.normalize(self.particles)
 
 # One JointInference module is shared globally across instances of MarginalInference
 jointInference = JointParticleFilter()
@@ -439,15 +450,19 @@ def setGhostPositions(gameState, ghostPositions):
     gameState.data.agentStates[index + 1] = game.AgentState(conf, False)
   return gameState
 
-def nSampleCounter(counts, n):
+# returns Counter or list after sampling n items from counts
+def nSampleCounter(counts, n, aslist = False):
   if counts.totalCount() != 1:
     counts = util.normalize(counts)
   pairs = counts.items()
   keys = [ k for k,v in pairs ]
   values = [ v for k,v in pairs ]
   sampled = util.nSample(values, keys, n)
+  if aslist:
+    return sampled
   return CounterFromIterable(sampled)
 
+# create a Counter from an Iterable
 def CounterFromIterable(items):
   c = util.Counter()
   for i in items: c[i] += 1
