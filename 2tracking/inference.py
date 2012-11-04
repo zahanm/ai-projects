@@ -136,7 +136,7 @@ class ExactInference(InferenceModule):
       P( true | noisy ) = P( noisy | true ) * P( true ) / P( noisy )
       We take care of the denominator by normalizing afterwords
       """
-      if emissionModel[trueDistance] > 0:
+      if emissionModel[trueDistance] > 0 and self.beliefs[pos] > 0:
         pTrue = math.exp( -abs(trueDistance - noisyDistance) ) / pTrueNorm
         self.beliefs[pos] = self.beliefs[pos] * emissionModel[trueDistance] * pTrue
       else:
@@ -215,10 +215,8 @@ class ParticleFilter(InferenceModule):
   def initializeUniformly(self, gameState, numParticles=300):
     "Initializes a list of particles."
     self.numParticles = numParticles
-    # will keep track of just the particles
-    self.beliefs = util.Counter()
-    for p in self.legalPositions: self.beliefs[p] += 1.0
-    self.beliefs.normalize()
+    # really using it as a Integer Count for particles
+    self.particles = CounterFromIterable(self.legalPositions)
 
   def observe(self, observation, gameState):
     "Update beliefs based on the given distance observation."
@@ -228,20 +226,27 @@ class ParticleFilter(InferenceModule):
 
     pTrueNorm = sum(map(lambda x: math.exp(-abs(x)), range(-7, 8)))
 
-    for pos in self.beliefs:
-      trueDistance = util.manhattanDistance(pos, pacmanPos)
-      """
-      use bayes rule to get P( true | noisy )
-      See ExactInference#observe
-      """
-      if emissionModel[trueDistance] > 0:
-        pTrue = math.exp( -abs(trueDistance - noisyDistance) ) / pTrueNorm
-        self.beliefs[pos] = self.beliefs[pos] * emissionModel[trueDistance] * pTrue
-      else:
-        self.beliefs[pos] = 0
-    self.beliefs.normalize()
+    # old beliefs over particles
+    proposal = util.normalize(self.particles)
+    beliefs = util.Counter()
 
-    self.beliefs = nSampleCounter(self.beliefs, self.numParticles)
+    for pos in self.legalPositions:
+      trueDistance = util.manhattanDistance(pos, pacmanPos)
+      delta = abs(trueDistance - noisyDistance)
+      """
+      P(pos | oldPos) in denominator gets calculated automatically
+      in normalization
+      """
+      if emissionModel[trueDistance] > 0 and proposal[pos] > 0 and delta <= MAX_DIST_DELTA:
+        pTrue = math.exp( -delta ) / pTrueNorm
+        beliefs[pos] = proposal[pos] * emissionModel[trueDistance] * pTrue
+
+    # reinitialize if something goes wrong
+    if beliefs.totalCount() == 0:
+      beliefs = CounterFromIterable(self.legalPositions)
+    beliefs.normalize()
+
+    self.particles = nSampleCounter(beliefs, self.numParticles)
 
   def elapseTime(self, gameState):
     """
@@ -256,8 +261,9 @@ class ParticleFilter(InferenceModule):
     position.
     """
 
-    oldBeliefs = self.beliefs
-    self.beliefs = util.Counter()
+    # old beliefs over particles
+    oldBeliefs = util.normalize(self.particles)
+    beliefs = util.Counter()
 
     for oldPos, oldProb in oldBeliefs.iteritems():
       if oldProb > 0:
@@ -265,16 +271,21 @@ class ParticleFilter(InferenceModule):
           self.getPositionDistribution(self.setGhostPosition(gameState, oldPos))
         # there isn't a multiplyAll() function
         dist.divideAll(1.0 / oldProb)
-        self.beliefs += dist
+        beliefs += dist
 
-    self.beliefs.normalize()
+    # reinitialize if something goes wrong
+    if beliefs.totalCount() == 0:
+      beliefs = CounterFromIterable(self.legalPositions)
+    beliefs.normalize()
+
+    self.particles = nSampleCounter(beliefs, self.numParticles)
 
   def getBeliefDistribution(self):
     """
     Return the agent's current belief state, a distribution over
     ghost locations conditioned on all evidence and time passage.
     """
-    return self.beliefs
+    return util.normalize(self.particles)
 
 class MarginalInference(InferenceModule):
   "A wrapper around the JointInference module that returns marginal beliefs about ghosts."
@@ -426,23 +437,16 @@ def setGhostPositions(gameState, ghostPositions):
     gameState.data.agentStates[index + 1] = game.AgentState(conf, False)
   return gameState
 
-def nSampleCounter(distribution, n):
-  if distribution.totalCount() != 1:
-    distribution.normalize()
-  if n > len(distribution.keys()):
-    return distribution
-  rand = [ random.random() for i in xrange(n) ]
-  rand.sort()
-  samples = util.Counter()
-  pairs = distribution.items()
+def nSampleCounter(counts, n):
+  if counts.totalCount() != 1:
+    counts = util.normalize(counts)
+  pairs = counts.items()
   keys = [ k for k,v in pairs ]
   values = [ v for k,v in pairs ]
-  samplePos, distPos, cdf = 0, 0, distribution[0]
-  while samplePos < n:
-    if rand[samplePos] < cdf:
-      samplePos += 1
-      samples[ keys[distPos] ] = values[distPos]
-    else:
-      distPos += 1
-      cdf += values[distPos]
-  return samples
+  sampled = util.nSample(values, keys, n)
+  return CounterFromIterable(sampled)
+
+def CounterFromIterable(items):
+  c = util.Counter()
+  for i in items: c[i] += 1
+  return c
