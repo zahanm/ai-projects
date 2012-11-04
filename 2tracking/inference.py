@@ -10,6 +10,11 @@ import util
 import random
 import busters
 import game
+import math
+
+# Constants
+# ---------
+MAX_DIST_DELTA = 7
 
 class InferenceModule:
   """
@@ -113,15 +118,28 @@ class ExactInference(InferenceModule):
     emissionModel = busters.getObservationDistribution(noisyDistance)
     pacmanPosition = gameState.getPacmanPosition()
 
-    "*** YOUR CODE HERE ***"
-    # Replace this code with a correct observation update
+    """
+    calculate normalizing factor for p(trueDistance)
+    Int[ exp(-|x|), x from -d to d ]
+    = Int[ exp(x), x from -d to 0 ] + Int[ exp(-x), x from 0 to d ]
+    = exp(0) - exp(-d) + exp(0) - exp(-d)
+    = 2 * ( 1 - exp(-d) )
+    """
+    pTrueNorm = 2 * (1 - math.exp(-MAX_DIST_DELTA))
+
     allPossible = util.Counter()
     for p in self.legalPositions:
       trueDistance = util.manhattanDistance(p, pacmanPosition)
-      if emissionModel[trueDistance] > 0: allPossible[p] = 1.0
+      """
+      use bayes rule to get
+      P( true | noisy ) = P( noisy | true ) * P( true ) / P( noisy )
+      We take care of the denominator by normalizing afterwords
+      """
+      if emissionModel[trueDistance] > 0:
+        pTrue = math.exp( -abs(trueDistance - noisyDistance) ) / pTrueNorm
+        allPossible[p] = emissionModel[trueDistance] * pTrue
     allPossible.normalize()
 
-    "*** YOUR CODE HERE ***"
     self.beliefs = allPossible
 
   def elapseTime(self, gameState):
