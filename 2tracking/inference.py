@@ -432,21 +432,21 @@ class JointParticleFilter:
     oldBeliefs = util.normalize(self.particles)
     beliefs = [ util.Counter() ] * self.numGhosts
 
-    for oldAssignment in oldBeliefs:
-      for assignment in possibleGhostMoves(oldAssignment, self.numGhosts, self.legalPositions):
-        for g in xrange(self.numGhosts):
-          if jailed[g]:
-            continue
-          trueDistance = util.manhattanDistance(assignment[g], pacmanPos)
-          delta = abs(trueDistance - noisyDistances[g])
-          """
-          P(pos | oldPos) in denominator gets calculated automatically
-          in normalization
-          """
-          if emissionModels[g][trueDistance] > 0 and delta <= MAX_DIST_DELTA:
-            pTrue = math.exp( -delta ) / pTrueNorm
-            beliefs[g][assignment[g]] = \
-              beliefs[g][assignment[g]] * emissionModels[g][trueDistance] * pTrue
+    for assignment in oldBeliefs:
+      # for assignment in possibleGhostMoves(oldAssignment, self.numGhosts, self.legalPositions):
+      for g in xrange(self.numGhosts):
+        if jailed[g]:
+          continue
+        trueDistance = util.manhattanDistance(assignment[g], pacmanPos)
+        delta = abs(trueDistance - noisyDistances[g])
+        """
+        P(pos | oldPos) in denominator gets calculated automatically
+        in normalization
+        """
+        if emissionModels[g][trueDistance] > 0 and delta <= MAX_DIST_DELTA:
+          pTrue = math.exp( -delta ) / pTrueNorm
+          beliefs[g][assignment[g]] = \
+            beliefs[g][assignment[g]] * emissionModels[g][trueDistance] * pTrue
 
     if any([ beliefs[g].totalCount() == 0 for g in xrange(self.numGhosts) ]):
       self.initializeParticles()
@@ -458,6 +458,8 @@ class JointParticleFilter:
         jailLocation = (2 * g + 1, 1)
         perGhostParticles[g] = [ jailLocation ] * self.numParticles
         continue
+      # perform stupid laplace smoothing
+      beliefs[g].incrementAll(beliefs[g].iterkeys(), min(beliefs[g].itervalues()) / 2)
       beliefs[g].normalize()
       perGhostParticles[g] = \
         nSampleCounter(beliefs[g], self.numParticles, aslist=True)
