@@ -270,8 +270,8 @@ class ParticleFilter(InferenceModule):
 
     for oldPos, oldProb in oldBeliefs.iteritems():
       if oldProb > 0:
-        dist = \
-          self.getPositionDistribution(self.setGhostPosition(gameState, oldPos))
+        pretendState = self.setGhostPosition(gameState, oldPos)
+        dist = self.getPositionDistribution(pretendState)
         # there isn't a multiplyAll() function
         dist.divideAll(1.0 / oldProb)
         beliefs += dist
