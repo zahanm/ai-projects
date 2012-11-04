@@ -432,20 +432,21 @@ class JointParticleFilter:
     oldBeliefs = util.normalize(self.particles)
     beliefs = [ util.Counter() ] * self.numGhosts
 
-    for assignment, oldProb in oldBeliefs.iteritems():
-      for g in xrange(self.numGhosts):
-        if jailed[g]:
-          continue
-        trueDistance = util.manhattanDistance(assignment[g], pacmanPos)
-        delta = abs(trueDistance - noisyDistances[g])
-        """
-        P(pos | oldPos) in denominator gets calculated automatically
-        in normalization
-        """
-        if emissionModels[g][trueDistance] > 0 and delta <= MAX_DIST_DELTA:
-          pTrue = math.exp( -delta ) / pTrueNorm
-          beliefs[g][assignment[g]] = \
-            oldProb * emissionModels[g][trueDistance] * pTrue
+    for oldAssignment in oldBeliefs:
+      for assignment in possibleGhostMoves(oldAssignment, self.numGhosts, self.legalPositions):
+        for g in xrange(self.numGhosts):
+          if jailed[g]:
+            continue
+          trueDistance = util.manhattanDistance(assignment[g], pacmanPos)
+          delta = abs(trueDistance - noisyDistances[g])
+          """
+          P(pos | oldPos) in denominator gets calculated automatically
+          in normalization
+          """
+          if emissionModels[g][trueDistance] > 0 and delta <= MAX_DIST_DELTA:
+            pTrue = math.exp( -delta ) / pTrueNorm
+            beliefs[g][assignment[g]] = \
+              beliefs[g][assignment[g]] * emissionModels[g][trueDistance] * pTrue
 
     if any([ beliefs[g].totalCount() == 0 for g in xrange(self.numGhosts) ]):
       self.initializeParticles()
@@ -486,6 +487,22 @@ def setGhostPositions(gameState, ghostPositions):
     conf = game.Configuration(pos, game.Directions.STOP)
     gameState.data.agentStates[index + 1] = game.AgentState(conf, False)
   return gameState
+
+"""
+Find possible successor states for ghost positions assignment
+
+"""
+def possibleGhostMoves(assignment, numGhosts, legalPositions):
+  possible = [ set() ] * numGhosts
+  for g in xrange(numGhosts):
+    for delta in xrange(MAX_DIST_DELTA + 1):
+      for split in xrange(delta + 1):
+        pos = (assignment[g][0] + split, assignment[g][1] + delta - split)
+        if pos in legalPositions: possible[g].add(pos)
+        pos = (assignment[g][0] - split, assignment[g][1] - delta + split)
+        if pos in legalPositions: possible[g].add(pos)
+  # returns the cartesian product of each possible ghost position
+  return itertools.product(*possible)
 
 # returns Counter or list after sampling n items from counts
 def nSampleCounter(counts, n, aslist = False):
