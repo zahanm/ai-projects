@@ -338,6 +338,8 @@ class JointParticleFilter:
       pos = \
         [ random.choice(self.legalPositions) for ghost in xrange(self.numGhosts) ]
       self.particles[tuple(pos)] += 1
+    self.sampledCounts = None
+    self.proposals = None
 
   def addGhostAgent(self, agent):
     "Each ghost agent is registered separately and stored (in case they are different)."
@@ -384,23 +386,32 @@ class JointParticleFilter:
           The ghost agent you are meant to supply is self.ghostAgents[ghostIndex-1],
           but in this project all ghost agents are always the same.
     """
-    oldBeliefs = util.normalize(self.particles)
-    beliefs = [ util.Counter() ] * self.numGhosts
+    self.sampledCounts = {}
+    self.proposals = {}
 
-    for assignment, oldProb in oldBeliefs.iteritems():
-      pretendState = setGhostPositions(gameState, assignment)
-      for g in xrange(self.numGhosts):
-        dist = \
-          getPositionDistributionForGhost(pretendState, g + 1, self.ghostAgents[g])
-        # there isn't a multiplyAll() function
-        dist.divideAll(1.0 / oldProb)
-        beliefs[g] += dist
-
-    perGhostParticles = [ None ] * self.numGhosts
-    for g in xrange(self.numGhosts):
-      perGhostParticles[g] = \
-        nSampleCounterWR(beliefs[g], self.numParticles, aslist=True)
-    self.particles = CounterFromIterable(itertools.izip(*perGhostParticles))
+    for oldAssign, oldNumParticles in self.particles.iteritems():
+      if oldNumParticles > 0:
+        pretendState = setGhostPositions(gameState, oldAssign)
+        joint = None
+        for g in xrange(self.numGhosts):
+          # dist[p] = Pr( ghost is at position p at time t + 1 | ghost is at
+          #   position oldPos at time t )
+          posDist = getPositionDistributionForGhost(pretendState, g + 1, self.ghostAgents[g])
+          if joint:
+            # take the cross product of both distributions
+            updatedJoint = util.Counter()
+            for cross in itertools.product(joint.iterkeys(), posDist.iterkeys()):
+              # trick to make a tuple
+              assign = cross[0] +  (cross[1], )
+              updatedJoint[assign] = joint[cross[0]] * posDist[cross[1]]
+            joint = updatedJoint
+          else:
+            joint = util.Counter()
+            for pos in posDist:
+              joint[ (pos,) ] = posDist[pos]
+        joint.normalize()
+        self.proposals[oldAssign] = joint
+        self.sampledCounts[oldAssign] = nSampleCounterWR(joint, oldNumParticles)
 
   def observeState(self, gameState):
     """
@@ -429,47 +440,40 @@ class JointParticleFilter:
     if len(noisyDistances) < self.numGhosts: return
     emissionModels = [busters.getObservationDistribution(dist) for dist in noisyDistances]
 
-    # put ghosts in jail
-    jailed = [ noisy == 999 for noisy in noisyDistances ]
-
     pTrueNorm = sum(map(lambda x: math.exp(-abs(x)), range(-7, 8)))
 
-    # old beliefs over particles
-    oldBeliefs = util.normalize(self.particles)
-    beliefs = [ util.Counter() ] * self.numGhosts
+    weighted = util.Counter()
+    jailed = [ noisy == 999 for noisy in noisyDistances ]
 
-    for assignment in oldBeliefs:
-      # for assignment in possibleGhostMoves(oldAssignment, self.numGhosts, self.legalPositions):
-      for g in xrange(self.numGhosts):
-        if jailed[g]:
-          continue
-        trueDistance = util.manhattanDistance(assignment[g], pacmanPos)
-        delta = abs(trueDistance - noisyDistances[g])
-        """
-        P(pos | oldPos) in denominator gets calculated automatically
-        in normalization
-        """
-        if emissionModels[g][trueDistance] > 0 and delta <= MAX_DIST_DELTA:
-          pTrue = math.exp( -delta ) / pTrueNorm
-          beliefs[g][assignment[g]] = \
-            beliefs[g][assignment[g]] * emissionModels[g][trueDistance] * pTrue
+    for oldAssign, counts in self.sampledCounts.iteritems():
+      for origAssign in counts:
+        assign = origAssign
+        emissions = [ 1.0 ] * self.numGhosts
+        for g in xrange(self.numGhosts):
+          if jailed[g]:
+            # if jailed
+            jailLocation = (2 * g + 1, 1)
+            assign = assign[:g] + (jailLocation,) + assign[g+1:]
+            emissions[g] =  1.0
+            continue
+          # roaming free
+          trueDistance = util.manhattanDistance(pacmanPos, assign[g])
+          delta = abs(trueDistance - noisyDistances[g])
+          if emissionModels[g][trueDistance] > 0 and delta <= MAX_DIST_DELTA:
+            pTrue = math.exp( -delta ) / pTrueNorm
+            emissions[g] =  emissionModels[g][trueDistance] * pTrue
+        weighted[assign] += counts[assign] * listProduct(emissions) / self.proposals[oldAssign][assign]
+      weighted.normalize()
 
-    if any([ beliefs[g].totalCount() == 0 for g in xrange(self.numGhosts) ]):
+    if len(weighted) == 0:
+      # reinitialize probs
       self.initializeParticles()
-      return
-
-    perGhostParticles = [ None ] * self.numGhosts
-    for g in xrange(self.numGhosts):
-      if (jailed[g]):
-        jailLocation = (2 * g + 1, 1)
-        perGhostParticles[g] = [ jailLocation ] * self.numParticles
-        continue
-      # perform stupid laplace smoothing
-      beliefs[g].incrementAll(beliefs[g].iterkeys(), min(beliefs[g].itervalues()) / 2)
-      beliefs[g].normalize()
-      perGhostParticles[g] = \
-        nSampleCounterWR(beliefs[g], self.numParticles, aslist=True)
-    self.particles = CounterFromIterable(itertools.izip(*perGhostParticles))
+    else:
+      # resample particles with replacement
+      self.particles = util.Counter()
+      for n in xrange(self.numParticles):
+        p = util.sample(weighted)
+        self.particles[p] += 1
 
   def getBeliefDistribution(self):
     return util.normalize(self.particles)
@@ -529,3 +533,9 @@ def CounterFromIterable(items):
   c = util.Counter()
   for i in items: c[i] += 1
   return c
+
+def listProduct(l):
+  r = 1
+  for i in l:
+    r *= i
+  return r
