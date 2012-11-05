@@ -456,7 +456,7 @@ class JointParticleFilter:
       for assign, oldCount in counts.iteritems():
         if oldCount <= 0:
           continue
-        emissions = [ 1.0 ] * self.numGhosts
+        emissions = [ None ] * self.numGhosts
         for g in xrange(self.numGhosts):
           if jailed[g]:
             # if jailed
