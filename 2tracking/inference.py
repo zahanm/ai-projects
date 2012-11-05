@@ -228,7 +228,11 @@ class ParticleFilter(InferenceModule):
     self.sampledCounts = None
 
   def observe(self, observation, gameState):
-    "Update beliefs based on the given distance observation."
+    """
+    Update beliefs based on the given distance observation.
+
+    Want to model P(noisy|true)
+    """
     noisyDistance = observation
     emissionModel = busters.getObservationDistribution(noisyDistance)
     pacmanPos = gameState.getPacmanPosition()
@@ -275,6 +279,8 @@ class ParticleFilter(InferenceModule):
     to obtain the distribution over new positions for the ghost, given
     its previous position (oldPos) as well as Pacman's current
     position.
+
+    Want to model P(T2|T1)
     """
 
     self.sampledCounts = {}
@@ -402,6 +408,10 @@ class JointParticleFilter:
           sampleParticles[i] = sampleParticles[i] + (samples[i], )
       self.sampledCounts[oldAssign] = CounterFromIterable(sampleParticles)
 
+    self.particles = util.Counter()
+    for k, v in self.sampledCounts.iteritems():
+      self.particles = self.particles + v
+
   def observeState(self, gameState):
     """
     Resamples the set of particles using the likelihood of the noisy observations.
@@ -434,10 +444,9 @@ class JointParticleFilter:
     jailed = [ noisy == 999 for noisy in noisyDistances ]
 
     for oldAssign, counts in self.sampledCounts.iteritems():
-      for origAssign, oldCount in counts.iteritems():
+      for assign, oldCount in counts.iteritems():
         if oldCount <= 0:
           continue
-        assign = origAssign
         emissions = [ 1.0 ] * self.numGhosts
         proposals = [ 1.0 ] * self.numGhosts
         for g in xrange(self.numGhosts):
