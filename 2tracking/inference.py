@@ -401,14 +401,17 @@ class JointParticleFilter:
             # take the cross product of both distributions
             updatedJoint = util.Counter()
             for cross in itertools.product(joint.iterkeys(), posDist.iterkeys()):
-              # trick to make a tuple
+              # trick to make the assignment tuple
               assign = cross[0] +  (cross[1], )
-              updatedJoint[assign] = joint[cross[0]] * posDist[cross[1]]
+              if posDist[cross[1]] > 0:
+                updatedJoint[assign] += joint[cross[0]] * posDist[cross[1]]
             joint = updatedJoint
+            joint.normalize()
           else:
             joint = util.Counter()
             for pos in posDist:
-              joint[ (pos,) ] = posDist[pos]
+              if posDist[pos] > 0:
+                joint[ (pos,) ] = posDist[pos]
         joint.normalize()
         self.proposals[oldAssign] = joint
         self.sampledCounts[oldAssign] = nSampleCounterWR(joint, oldNumParticles)
