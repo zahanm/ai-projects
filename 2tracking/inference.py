@@ -449,42 +449,38 @@ class JointParticleFilter:
     if len(noisyDistances) < self.numGhosts: return
     emissionModels = [busters.getObservationDistribution(dist) for dist in noisyDistances]
 
-    weighted = util.Counter()
     jailed = [ noisy == 999 for noisy in noisyDistances ]
 
-    for oldAssign, counts in self.sampledCounts.iteritems():
-      for assign, oldCount in counts.iteritems():
-        if oldCount <= 0:
-          continue
-        emissions = [ None ] * self.numGhosts
-        for g in xrange(self.numGhosts):
-          if jailed[g]:
-            # if jailed
-            jailLocation = (2 * g + 1, 1)
-            assign = assign[:g] + (jailLocation,) + assign[g+1:]
-            emissions[g] = 1.0
+    partials = [ tuple() ] * self.numParticles
+
+    for g in xrange(self.numGhosts):
+      weighted = util.Counter()
+      if jailed[g]:
+        # handle the jailed ghost
+        jailLocation = (2 * g + 1, 1)
+        for i in xrange(self.numParticles):
+          partials[i] += (jailLocation, )
+        continue
+      for oldAssign, counts in self.sampledCounts.iteritems():
+        for assign, oldCount in counts.iteritems():
+          if oldCount <= 0:
             continue
-          # roaming free
           trueDistance = util.manhattanDistance(pacmanPos, assign[g])
           delta = abs(trueDistance - noisyDistances[g])
           if emissionModels[g][trueDistance] > 0 and delta <= MAX_DIST_DELTA:
             # no need to normalize by constant
             pTrue = math.exp( -delta )
-            emissions[g] = emissionModels[g][trueDistance] * pTrue
-          else:
-            emissions[g] = 0.0
-        weighted[assign] += oldCount * listProduct(emissions) / self.proposals[oldAssign][assign]
-      weighted.normalize()
+            weighted[assign[g]] = oldCount * emissionModels[g][trueDistance] * pTrue / self.proposals[oldAssign][assign]
+      totalWeight = weighted.totalCount()
+      if totalWeight != 0: weighted.normalize()
+      for i in xrange(self.numParticles):
+        if totalWeight == 0:
+          #  handle the zero weights case
+          partials[i] += (random.choice(self.legalPositions), )
+        else:
+          partials[i] += (util.sample(weighted), )
 
-    if weighted.totalCount() == 0:
-      # reinitialize probs
-      self.initializeParticles()
-    else:
-      # resample particles with replacement
-      self.particles = util.Counter()
-      for n in xrange(self.numParticles):
-        p = util.sample(weighted)
-        self.particles[p] += 1
+    self.particles = CounterFromIterable(partials)
 
   def getBeliefDistribution(self):
     return util.normalize(self.particles)
