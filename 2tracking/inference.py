@@ -128,7 +128,7 @@ class ExactInference(InferenceModule):
     """
     # pTrueNorm = 2 * (1 - math.exp(-MAX_DIST_DELTA))
     # above was having numerical errors
-    pTrueNorm = sum(map(lambda x: math.exp(-abs(x)), range(-7, 8)))
+    # pTrueNorm = sum(map(lambda x: math.exp(-abs(x)), range(-7, 8)))
 
     for pos in self.beliefs:
       trueDistance = util.manhattanDistance(pos, pacmanPosition)
@@ -138,7 +138,8 @@ class ExactInference(InferenceModule):
       We take care of the denominator by normalizing afterwords
       """
       if emissionModel[trueDistance] > 0 and self.beliefs[pos] > 0:
-        pTrue = math.exp( -abs(trueDistance - noisyDistance) ) / pTrueNorm
+        # no need to normalize since it's by a constant
+        pTrue = math.exp( -abs(trueDistance - noisyDistance) )
         self.beliefs[pos] = self.beliefs[pos] * emissionModel[trueDistance] * pTrue
       else:
         self.beliefs[pos] = 0
@@ -232,8 +233,6 @@ class ParticleFilter(InferenceModule):
     emissionModel = busters.getObservationDistribution(noisyDistance)
     pacmanPos = gameState.getPacmanPosition()
 
-    pTrueNorm = sum(map(lambda x: math.exp(-abs(x)), range(-7, 8)))
-
     weighted = util.Counter()
 
     # check if jailed
@@ -246,7 +245,8 @@ class ParticleFilter(InferenceModule):
           trueDistance = util.manhattanDistance(pacmanPos, pos)
           delta = abs(trueDistance - noisyDistance)
           if emissionModel[trueDistance] > 0 and delta <= MAX_DIST_DELTA:
-            pTrue = math.exp( -delta ) / pTrueNorm
+            # no need to normalize by constant
+            pTrue = math.exp( -delta )
             weighted[pos] += \
               counts[pos] * emissionModel[trueDistance] * pTrue / self.proposals[oldPos][pos]
 
@@ -440,8 +440,6 @@ class JointParticleFilter:
     if len(noisyDistances) < self.numGhosts: return
     emissionModels = [busters.getObservationDistribution(dist) for dist in noisyDistances]
 
-    pTrueNorm = sum(map(lambda x: math.exp(-abs(x)), range(-7, 8)))
-
     weighted = util.Counter()
     jailed = [ noisy == 999 for noisy in noisyDistances ]
 
@@ -460,7 +458,8 @@ class JointParticleFilter:
           trueDistance = util.manhattanDistance(pacmanPos, assign[g])
           delta = abs(trueDistance - noisyDistances[g])
           if emissionModels[g][trueDistance] > 0 and delta <= MAX_DIST_DELTA:
-            pTrue = math.exp( -delta ) / pTrueNorm
+            # no need to normalize by constant
+            pTrue = math.exp( -delta )
             emissions[g] =  emissionModels[g][trueDistance] * pTrue
         weighted[assign] += counts[assign] * listProduct(emissions) / self.proposals[oldAssign][assign]
       weighted.normalize()
