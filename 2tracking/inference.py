@@ -398,15 +398,17 @@ class JointParticleFilter:
     for oldAssign, oldNumParticles in self.particles.iteritems():
       if oldNumParticles <= 0:
         continue
-      sampleParticles = [ tuple() ] * oldNumParticles
+      partials = [ tuple() ] * oldNumParticles
+      prevAssignDist = None
       for g in xrange(self.numGhosts):
-        pretendState = setGhostPositions(gameState, oldAssign)
-        dist = getPositionDistributionForGhost(pretendState, g + 1, self.ghostAgents[g])
-        self.proposals[g][oldAssign[g]] = dist
-        samples = nSampleCounterWR(dist, oldNumParticles, aslist=True)
-        for i in xrange(len(samples)):
-          sampleParticles[i] = sampleParticles[i] + (samples[i], )
-      self.sampledCounts[oldAssign] = CounterFromIterable(sampleParticles)
+        for i in xrange(oldNumParticles):
+          assign = partials[i] + oldAssign[len(partials[i]):]
+          pretendState = setGhostPositions(gameState, assign)
+          dist = getPositionDistributionForGhost(pretendState, g + 1, self.ghostAgents[g])
+          self.proposals[g][assign] = dist
+          sample = util.sample(dist)
+          partials[i] += (sample, )
+      self.sampledCounts[oldAssign] = CounterFromIterable(partials)
 
     self.particles = util.Counter()
     for k, v in self.sampledCounts.iteritems():
@@ -464,14 +466,14 @@ class JointParticleFilter:
             # no need to normalize by constant
             pTrue = math.exp( -delta )
             emissions[g] = emissionModels[g][trueDistance] * pTrue
-            proposals[g] = self.proposals[g][oldAssign[g]][assign[g]]
+            proposals[g] = self.proposals[g][oldAssign][assign]
           else:
             emissions[g] = 0.0
             proposals[g] = 1.0
         weighted[assign] += oldCount * listProduct(emissions) / listProduct(proposals)
       weighted.normalize()
 
-    if len(weighted) == 0:
+    if weighted.totalCount() == 0:
       # reinitialize probs
       self.initializeParticles()
     else:
