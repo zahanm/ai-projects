@@ -12,6 +12,7 @@ import busters
 import game
 import math
 import itertools
+from collections import defaultdict
 
 # Constants
 # ---------
@@ -392,23 +393,29 @@ class JointParticleFilter:
           The ghost agent you are meant to supply is self.ghostAgents[ghostIndex-1],
           but in this project all ghost agents are always the same.
     """
-    self.proposals = [ util.Counter() ] * self.numGhosts
+    self.proposals = defaultdict(util.Counter)
     self.sampledCounts = {}
 
     for oldAssign, oldNumParticles in self.particles.iteritems():
       if oldNumParticles <= 0:
         continue
       partials = [ tuple() ] * oldNumParticles
-      prevAssignDist = None
+      proposals = [ None ] * self.numGhosts
       for g in xrange(self.numGhosts):
         for i in xrange(oldNumParticles):
           assign = partials[i] + oldAssign[len(partials[i]):]
           pretendState = setGhostPositions(gameState, assign)
           dist = getPositionDistributionForGhost(pretendState, g + 1, self.ghostAgents[g])
-          self.proposals[g][assign] = dist
+          proposals[g] = dist
           sample = util.sample(dist)
           partials[i] += (sample, )
       self.sampledCounts[oldAssign] = CounterFromIterable(partials)
+      for assign in self.sampledCounts[oldAssign]:
+        assignProb = 1.0
+        for g in xrange(self.numGhosts):
+          assignProb *= proposals[g][assign[g]]
+        self.proposals[oldAssign][assign] = assignProb
+      self.proposals[oldAssign].normalize()
 
     self.particles = util.Counter()
     for k, v in self.sampledCounts.iteritems():
@@ -450,14 +457,12 @@ class JointParticleFilter:
         if oldCount <= 0:
           continue
         emissions = [ 1.0 ] * self.numGhosts
-        proposals = [ 1.0 ] * self.numGhosts
         for g in xrange(self.numGhosts):
           if jailed[g]:
             # if jailed
             jailLocation = (2 * g + 1, 1)
             assign = assign[:g] + (jailLocation,) + assign[g+1:]
             emissions[g] = 1.0
-            proposals[g] = 1.0
             continue
           # roaming free
           trueDistance = util.manhattanDistance(pacmanPos, assign[g])
@@ -466,11 +471,9 @@ class JointParticleFilter:
             # no need to normalize by constant
             pTrue = math.exp( -delta )
             emissions[g] = emissionModels[g][trueDistance] * pTrue
-            proposals[g] = self.proposals[g][oldAssign][assign]
           else:
             emissions[g] = 0.0
-            proposals[g] = 1.0
-        weighted[assign] += oldCount * listProduct(emissions) / listProduct(proposals)
+        weighted[assign] += oldCount * listProduct(emissions) / self.proposals[oldAssign][assign]
       weighted.normalize()
 
     if weighted.totalCount() == 0:
