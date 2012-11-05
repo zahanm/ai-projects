@@ -223,9 +223,8 @@ class ParticleFilter(InferenceModule):
     # proposal distribution
     unifProposal = CounterFromIterable(self.legalPositions)
     unifProposal.normalize()
-    self.proposals = {}
-    for p in self.legalPositions:
-      self.proposals[p] = unifProposal
+    self.proposals = None
+    self.sampledCounts = None
 
   def observe(self, observation, gameState):
     "Update beliefs based on the given distance observation."
@@ -237,20 +236,33 @@ class ParticleFilter(InferenceModule):
 
     weighted = util.Counter()
 
-    for oldPos, counts in self.sampledCounts.iteritems():
-      for pos in counts:
-        trueDistance = util.manhattanDistance(pacmanPos, pos)
-        delta = abs(trueDistance - noisyDistance)
-        if emissionModel[trueDistance] > 0 and delta <= MAX_DIST_DELTA:
-          pTrue = math.exp( -delta ) / pTrueNorm
-          weighted[pos] += \
-            counts[pos] * emissionModel[trueDistance] * pTrue / self.proposals[oldPos][pos]
+    # check if jailed
+    if noisyDistance == 999:
+      jailLoc = (2 * (self.index - 1) + 1, 1)
+      weighted[jailLoc] += 1
+    else:
+      for oldPos, counts in self.sampledCounts.iteritems():
+        for pos in counts:
+          trueDistance = util.manhattanDistance(pacmanPos, pos)
+          delta = abs(trueDistance - noisyDistance)
+          if emissionModel[trueDistance] > 0 and delta <= MAX_DIST_DELTA:
+            pTrue = math.exp( -delta ) / pTrueNorm
+            weighted[pos] += \
+              counts[pos] * emissionModel[trueDistance] * pTrue / self.proposals[oldPos][pos]
 
-    # resample particles with replacement
-    self.particles = util.Counter()
-    for n in xrange(self.numParticles):
-      p = util.sample(weighted)
-      self.particles[p] += 1
+    weighted.normalize()
+
+    if len(weighted) == 0:
+      # reinitialize probs
+      self.particles = util.Counter()
+      for i in xrange(self.numParticles):
+        self.particles[ random.choice(self.legalPositions) ] += 1
+    else:
+      # resample particles with replacement
+      self.particles = util.Counter()
+      for n in xrange(self.numParticles):
+        p = util.sample(weighted)
+        self.particles[p] += 1
 
   def elapseTime(self, gameState):
     """
