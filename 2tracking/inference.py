@@ -386,35 +386,21 @@ class JointParticleFilter:
           The ghost agent you are meant to supply is self.ghostAgents[ghostIndex-1],
           but in this project all ghost agents are always the same.
     """
+    self.proposals = [ util.Counter() ] * self.numGhosts
     self.sampledCounts = {}
-    self.proposals = {}
 
     for oldAssign, oldNumParticles in self.particles.iteritems():
-      if oldNumParticles > 0:
+      if oldNumParticles <= 0:
+        continue
+      sampleParticles = [ tuple() ] * oldNumParticles
+      for g in xrange(self.numGhosts):
         pretendState = setGhostPositions(gameState, oldAssign)
-        joint = None
-        for g in xrange(self.numGhosts):
-          # dist[p] = Pr( ghost is at position p at time t + 1 | ghost is at
-          #   position oldPos at time t )
-          posDist = getPositionDistributionForGhost(pretendState, g + 1, self.ghostAgents[g])
-          if joint:
-            # take the cross product of both distributions
-            updatedJoint = util.Counter()
-            for cross in itertools.product(joint.iterkeys(), posDist.iterkeys()):
-              # trick to make the assignment tuple
-              assign = cross[0] +  (cross[1], )
-              if posDist[cross[1]] > 0:
-                updatedJoint[assign] += joint[cross[0]] * posDist[cross[1]]
-            joint = updatedJoint
-            joint.normalize()
-          else:
-            joint = util.Counter()
-            for pos in posDist:
-              if posDist[pos] > 0:
-                joint[ (pos,) ] = posDist[pos]
-        joint.normalize()
-        self.proposals[oldAssign] = joint
-        self.sampledCounts[oldAssign] = nSampleCounterWR(joint, oldNumParticles)
+        dist = getPositionDistributionForGhost(pretendState, g + 1, self.ghostAgents[g])
+        self.proposals[g][oldAssign[g]] = dist
+        samples = nSampleCounterWR(dist, oldNumParticles, aslist=True)
+        for i in xrange(len(samples)):
+          sampleParticles[i] = sampleParticles[i] + (samples[i], )
+      self.sampledCounts[oldAssign] = CounterFromIterable(sampleParticles)
 
   def observeState(self, gameState):
     """
@@ -438,6 +424,7 @@ class JointParticleFilter:
       2) When all particles receive 0 weight, they should be recreated from the
           prior distribution by calling initializeParticles.
     """
+
     pacmanPos = gameState.getPacmanPosition()
     noisyDistances = gameState.getNoisyGhostDistances()
     if len(noisyDistances) < self.numGhosts: return
@@ -447,15 +434,19 @@ class JointParticleFilter:
     jailed = [ noisy == 999 for noisy in noisyDistances ]
 
     for oldAssign, counts in self.sampledCounts.iteritems():
-      for origAssign in counts:
+      for origAssign, oldCount in counts.iteritems():
+        if oldCount <= 0:
+          continue
         assign = origAssign
         emissions = [ 1.0 ] * self.numGhosts
+        proposals = [ 1.0 ] * self.numGhosts
         for g in xrange(self.numGhosts):
           if jailed[g]:
             # if jailed
             jailLocation = (2 * g + 1, 1)
             assign = assign[:g] + (jailLocation,) + assign[g+1:]
-            emissions[g] =  1.0
+            emissions[g] = 1.0
+            proposals[g] = 1.0
             continue
           # roaming free
           trueDistance = util.manhattanDistance(pacmanPos, assign[g])
@@ -463,8 +454,12 @@ class JointParticleFilter:
           if emissionModels[g][trueDistance] > 0 and delta <= MAX_DIST_DELTA:
             # no need to normalize by constant
             pTrue = math.exp( -delta )
-            emissions[g] =  emissionModels[g][trueDistance] * pTrue
-        weighted[assign] += counts[assign] * listProduct(emissions) / self.proposals[oldAssign][assign]
+            emissions[g] = emissionModels[g][trueDistance] * pTrue
+            proposals[g] = self.proposals[g][oldAssign[g]][assign[g]]
+          else:
+            emissions[g] = 0.0
+            proposals[g] = 1.0
+        weighted[assign] += oldCount * listProduct(emissions) / listProduct(proposals)
       weighted.normalize()
 
     if len(weighted) == 0:
