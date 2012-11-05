@@ -220,6 +220,12 @@ class ParticleFilter(InferenceModule):
     self.particles = util.Counter()
     for i in xrange(self.numParticles):
       self.particles[ random.choice(self.legalPositions) ] += 1
+    # proposal distribution
+    unifProposal = CounterFromIterable(self.legalPositions)
+    unifProposal.normalize()
+    self.proposals = {}
+    for p in self.legalPositions:
+      self.proposals[p] = unifProposal
 
   def observe(self, observation, gameState):
     "Update beliefs based on the given distance observation."
@@ -229,27 +235,22 @@ class ParticleFilter(InferenceModule):
 
     pTrueNorm = sum(map(lambda x: math.exp(-abs(x)), range(-7, 8)))
 
-    # old beliefs over particles
-    proposal = util.normalize(self.particles)
-    beliefs = util.Counter()
+    weighted = util.Counter()
 
-    for pos in self.legalPositions:
-      trueDistance = util.manhattanDistance(pos, pacmanPos)
-      delta = abs(trueDistance - noisyDistance)
-      """
-      P(pos | oldPos) in denominator gets calculated automatically
-      in normalization
-      """
-      if emissionModel[trueDistance] > 0 and proposal[pos] > 0 and delta <= MAX_DIST_DELTA:
-        pTrue = math.exp( -delta ) / pTrueNorm
-        beliefs[pos] = proposal[pos] * emissionModel[trueDistance] * pTrue
+    for oldPos, counts in self.sampledCounts.iteritems():
+      for pos in counts:
+        trueDistance = util.manhattanDistance(pacmanPos, pos)
+        delta = abs(trueDistance - noisyDistance)
+        if emissionModel[trueDistance] > 0 and delta <= MAX_DIST_DELTA:
+          pTrue = math.exp( -delta ) / pTrueNorm
+          weighted[pos] += \
+            counts[pos] * emissionModel[trueDistance] * pTrue / self.proposals[oldPos][pos]
 
-    # reinitialize if something goes wrong
-    if beliefs.totalCount() == 0:
-      beliefs = CounterFromIterable(self.legalPositions)
-    beliefs.normalize()
-
-    self.particles = nSampleCounter(beliefs, self.numParticles)
+    # resample particles with replacement
+    self.particles = util.Counter()
+    for n in xrange(self.numParticles):
+      p = util.sample(weighted)
+      self.particles[p] += 1
 
   def elapseTime(self, gameState):
     """
@@ -264,24 +265,17 @@ class ParticleFilter(InferenceModule):
     position.
     """
 
-    # old beliefs over particles
-    oldBeliefs = util.normalize(self.particles)
-    beliefs = util.Counter()
+    self.sampledCounts = {}
+    self.proposals = {}
 
-    for oldPos, oldProb in oldBeliefs.iteritems():
-      if oldProb > 0:
+    for oldPos, oldNumParticles in self.particles.iteritems():
+      if oldNumParticles > 0:
         pretendState = self.setGhostPosition(gameState, oldPos)
-        dist = self.getPositionDistribution(pretendState)
-        # there isn't a multiplyAll() function
-        dist.divideAll(1.0 / oldProb)
-        beliefs += dist
-
-    # reinitialize if something goes wrong
-    if beliefs.totalCount() == 0:
-      beliefs = CounterFromIterable(self.legalPositions)
-    beliefs.normalize()
-
-    self.particles = nSampleCounter(beliefs, self.numParticles)
+        # dist[p] = Pr( ghost is at position p at time t + 1 | ghost is at
+        #   position oldPos at time t )
+        posDist = self.getPositionDistribution(pretendState)
+        self.proposals[oldPos] = posDist
+        self.sampledCounts[oldPos] = nSampleCounterWR(posDist, oldNumParticles)
 
   def getBeliefDistribution(self):
     """
@@ -393,7 +387,7 @@ class JointParticleFilter:
     perGhostParticles = [ None ] * self.numGhosts
     for g in xrange(self.numGhosts):
       perGhostParticles[g] = \
-        nSampleCounter(beliefs[g], self.numParticles, aslist=True)
+        nSampleCounterWR(beliefs[g], self.numParticles, aslist=True)
     self.particles = CounterFromIterable(itertools.izip(*perGhostParticles))
 
   def observeState(self, gameState):
@@ -462,7 +456,7 @@ class JointParticleFilter:
       beliefs[g].incrementAll(beliefs[g].iterkeys(), min(beliefs[g].itervalues()) / 2)
       beliefs[g].normalize()
       perGhostParticles[g] = \
-        nSampleCounter(beliefs[g], self.numParticles, aslist=True)
+        nSampleCounterWR(beliefs[g], self.numParticles, aslist=True)
     self.particles = CounterFromIterable(itertools.izip(*perGhostParticles))
 
   def getBeliefDistribution(self):
@@ -507,7 +501,7 @@ def possibleGhostMoves(assignment, numGhosts, legalPositions):
   return itertools.product(*possible)
 
 # returns Counter or list after sampling n items from counts
-def nSampleCounter(counts, n, aslist = False):
+def nSampleCounterWR(counts, n, aslist = False):
   if counts.totalCount() != 1:
     counts = util.normalize(counts)
   pairs = counts.items()
