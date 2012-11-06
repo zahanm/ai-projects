@@ -12,7 +12,7 @@ import busters
 import game
 import math
 import itertools
-from collections import defaultdict
+import collections
 
 # Constants
 # ---------
@@ -393,7 +393,7 @@ class JointParticleFilter:
           The ghost agent you are meant to supply is self.ghostAgents[ghostIndex-1],
           but in this project all ghost agents are always the same.
     """
-    self.proposals = defaultdict(util.Counter)
+    self.proposals = collections.defaultdict(util.Counter)
     self.sampledCounts = {}
 
     for oldAssign, oldNumParticles in self.particles.iteritems():
@@ -546,3 +546,37 @@ def listProduct(l):
   for i in l:
     r *= i
   return r
+
+"""
+Working with the *original* Counter
+-----------------------------------
+
+add a .normalize(), .argMax() and .totalCount() to collections.Counter
+Python actually does let you do (security-threatening) things like this
+
+"""
+
+def extendClass(meta):
+
+  def normalize(self):
+    # remove zeros and negatives
+    self += collections.Counter()
+    if len(self) == 0:
+      return
+    totalCount = float(sum(self.itervalues()))
+    for k in self:
+      self[k] /= totalCount
+
+  def argMax(self):
+    if len(self) == 0: return None
+    maxitem = max(self.iteritems(), key=lambda t: t[1])
+    return maxitem[0]
+
+  def totalCount(self):
+    return sum(self.itervalues())
+
+  meta.normalize = normalize
+  meta.argMax = argMax
+  meta.totalCount = totalCount
+
+extendClass(collections.Counter)
