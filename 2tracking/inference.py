@@ -141,7 +141,7 @@ class ExactInference(InferenceModule):
       if emissionModel[trueDistance] > 0 and self.beliefs[pos] > 0:
         # no need to normalize since it's by a constant
         pTrue = math.exp( -abs(trueDistance - noisyDistance) )
-        self.beliefs[pos] = self.beliefs[pos] * emissionModel[trueDistance] * pTrue
+        self.beliefs[pos] *= emissionModel[trueDistance] * pTrue
       else:
         self.beliefs[pos] = 0
 
