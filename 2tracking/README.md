@@ -22,3 +22,4 @@ would want.
 This would probably be much better performant if you were actually building this
 out, rather than implementing your own `util.Counter`.
 
+Extra credit, pretty please?
