@@ -178,6 +178,14 @@ class StochasticGradientLearner():
       for x, y in trainExamples:
         numUpdates += 1
         "*** YOUR CODE HERE (around 7 lines of code expected) ***"
+        featureVector = self.featureExtractor(x)
+        lossGrad = lossGradient(featureVector, y, self.weights)
+        for fKey, fLossTerm in lossGrad.iteritems():
+          self.weights[fKey] -= fLossTerm
+        if (options.regularization > 0):
+          c = float(options.regularization) / len(trainExamples)
+          for fKey in self.weights.iterkeys():
+            self.weights[fKey] *= (1-c)
 
       # Compute the objective function.
       # Here, we have split the objective function into two components:
@@ -192,7 +200,7 @@ class StochasticGradientLearner():
       for weight in self.weights.itervalues():
         regularizationPenalty += weight ** 2
       regularizationPenalty *= 0.5
-      self.objective = trainLoss + options["regularization"] * regularizationPenalty
+      self.objective = trainLoss + options.regularization * regularizationPenalty
 
       # See how well we're doing on our actual goal (error rate).
       trainError = util.getClassificationErrorRate(trainExamples, self.predict, 'train', options.verbose, self.featureExtractor, self.weights)
