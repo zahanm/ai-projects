@@ -183,8 +183,8 @@ class StochasticGradientLearner():
         stepSize = options.initStepSize / (numUpdates ** options.stepSizeReduction)
         if (options.regularization > 0):
           c = float(options.regularization) / len(trainExamples)
-          for fKey, fLoss in lossGrad.iteritems():
-            self.weights[fKey] -= stepSize * (fLoss + c * self.weights[fKey])
+          for fKey in self.weights.iterkeys():
+            self.weights[fKey] -= stepSize * (lossGrad[fKey] + c * self.weights[fKey])
         else:
           for fKey, fLoss in lossGrad.iteritems():
             self.weights[fKey] -= stepSize * fLoss
