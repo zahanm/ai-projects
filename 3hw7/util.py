@@ -1,3 +1,6 @@
+
+import inspect, sys
+
 # Return the error rate on examples when using predict.
 # featureExtractor, if specified is used for debugging.
 def getClassificationErrorRate(examples, predict, displayName=None, verbose=0, featureExtractor=None, weights=None):

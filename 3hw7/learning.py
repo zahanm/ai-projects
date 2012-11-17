@@ -1,6 +1,9 @@
+
 import util, random, math, sys
 from math import exp, log
 from util import Counter
+
+import itertools
 
 ############################################################
 # Feature extractors: a feature extractor should take a raw input x (tuple of
@@ -37,7 +40,10 @@ The logistic loss, for a given weight vector.
 """
 def logisticLoss(featureVector, y, weights):
   "*** YOUR CODE HERE (around 2 lines of code expected) ***"
-  util.raiseNotDefined()
+  dotp = 0.0
+  for fKey, wKey in itertools.izip(featureVector.iterkeys(), weights.iterkeys()):
+    dotp += featureVector[fKey] * weights[wKey]
+  return log( 1 + exp(-dotp * y) )
 
 """
 The gradient of the logistic loss with respect to the weight vector.
@@ -49,7 +55,13 @@ The gradient of the logistic loss with respect to the weight vector.
 """
 def logisticLossGradient(featureVector, y, weights):
   "*** YOUR CODE HERE (around 3 lines of code expected) ***"
-  util.raiseNotDefined()
+  dotp = 0.0
+  for fKey, wKey in itertools.izip(featureVector.iterkeys(), weights.iterkeys()):
+    dotp += featureVector[fKey] * weights[wKey]
+  grad = Counter()
+  for fKey in featureVector.iterkeys():
+    grad[fKey] = -featureVector[fKey] * y / (1 + exp(dotp * y))
+  return grad
 
 """
 The hinge loss, for a given weight vector.
@@ -60,7 +72,10 @@ The hinge loss, for a given weight vector.
 """
 def hingeLoss(featureVector, y, weights):
   "*** YOUR CODE HERE (around 2 lines of code expected) ***"
-  util.raiseNotDefined()
+  dotp = 0.0
+  for fKey, wKey in itertools.izip(featureVector.iterkeys(), weights.iterkeys()):
+    dotp += featureVector[fKey] * weights[wKey]
+  return max(1 - dotp * y, 0.0)
 
 """
 The gradient of the hinge loss with respect to the weight vector.
@@ -73,7 +88,16 @@ The gradient of the hinge loss with respect to the weight vector.
 """
 def hingeLossGradient(featureVector, y, weights):
   "*** YOUR CODE HERE (around 3 lines of code expected) ***"
-  util.raiseNotDefined()
+  dotp = 0.0
+  for fKey, wKey in itertools.izip(featureVector.iterkeys(), weights.iterkeys()):
+    dotp += featureVector[fKey] * weights[wKey]
+  grad = Counter()
+  for fKey in featureVector.iterkeys():
+    if dotp*y < 1:
+      grad[fKey] = (-featureVector[fKey] * y)
+    else:
+      grad[fKey] = 0.0
+  return grad
 
 """
 The squared loss, for a given weight vector.
@@ -84,7 +108,10 @@ The squared loss, for a given weight vector.
 """
 def squaredLoss(featureVector, y, weights):
   "*** YOUR CODE HERE (around 2 lines of code expected) ***"
-  util.raiseNotDefined()
+  dotp = 0.0
+  for fKey, wKey in itertools.izip(featureVector.iterkeys(), weights.iterkeys()):
+    dotp += featureVector[fKey] * weights[wKey]
+  return 0.5 * (dotp - y) ** 2
 
 """
 The gradient of the squared loss with respect to the weight vector.
@@ -96,7 +123,13 @@ The gradient of the squared loss with respect to the weight vector.
 """
 def squaredLossGradient(featureVector, y, weights):
   "*** YOUR CODE HERE (around 2 lines of code expected) ***"
-  util.raiseNotDefined()
+  dotp = 0.0
+  for fKey, wKey in itertools.izip(featureVector.iterkeys(), weights.iterkeys()):
+    dotp += featureVector[fKey] * weights[wKey]
+  grad = Counter()
+  for fKey in featureVector.iterkeys():
+    grad[fKey] = (dotp - y) * featureVector[fKey]
+  return grad
 
 class StochasticGradientLearner():
   def __init__(self, featureExtractor):
