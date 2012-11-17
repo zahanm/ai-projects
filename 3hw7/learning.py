@@ -167,7 +167,7 @@ class StochasticGradientLearner():
     # You should go over the training data numRounds times.
     # Each round, go through all the examples in some random order and update
     # the weights with respect to the gradient.
-    for round in range(0, options.numRounds):
+    for r in xrange(0, options.numRounds):
       random.shuffle(trainExamples)
       numUpdates = 0  # Should be incremented with each example and determines the step size.
 
@@ -186,18 +186,24 @@ class StochasticGradientLearner():
       trainLoss = 0  # Training loss
       regularizationPenalty = 0  # L2 Regularization penalty
       "*** YOUR CODE HERE (around 5 lines of code expected) ***"
-      self.objective = trainLoss + regularizationPenalty
+      for x, y in trainExamples:
+        featureVector = self.featureExtractor(x)
+        trainLoss += loss(featureVector, y, self.weights)
+      for weight in self.weights.itervalues():
+        regularizationPenalty += weight ** 2
+      regularizationPenalty *= 0.5
+      self.objective = trainLoss + options["regularization"] * regularizationPenalty
 
       # See how well we're doing on our actual goal (error rate).
       trainError = util.getClassificationErrorRate(trainExamples, self.predict, 'train', options.verbose, self.featureExtractor, self.weights)
       validationError = util.getClassificationErrorRate(validationExamples, self.predict, 'validation', options.verbose, self.featureExtractor, self.weights)
 
-      print "Round %s/%s: objective = %.2f = %.2f + %.2f, train error = %.4f, validation error = %.4f" % (round+1, options.numRounds, self.objective, trainLoss, regularizationPenalty, trainError, validationError)
+      print "Round %s/%s: objective = %.2f = %.2f + %.2f, train error = %.4f, validation error = %.4f" % (r+1, options.numRounds, self.objective, trainLoss, regularizationPenalty, trainError, validationError)
 
     # Print out feature weights
     out = open('weights', 'w')
     for f, v in sorted(self.weights.items(), key=lambda x: -x[1]):
-      print >>out, f + "\t" + str(v)
+      print >> out, f + "\t" + str(v)
     out.close()
 
   """
@@ -213,7 +219,11 @@ class StochasticGradientLearner():
   """
   def predict(self, x):
     "*** YOUR CODE HERE (around 3 lines of code expected) ***"
-    util.raiseNotDefined()
+    featureVector = self.featureExtractor(x)
+    pred = 0.0
+    for fKey in featureVector.iterkeys():
+      pred += featureVector[fKey] * self.weights[fKey]
+    return 1 if pred >= 0 else -1
 
 # After you have tuned your parameters, set the hyperparameter options:
 # featureExtractor, loss, initStepSize, stepSizeReduction, numRounds, regularization, etc.
