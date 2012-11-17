@@ -285,6 +285,12 @@ class StochasticGradientLearner():
 # The autograder will call this function before calling learn().
 def setTunedOptions(options):
   "*** YOUR CODE HERE (around 6 lines of code expected) ***"
+  options.loss = 'logistic'
+  options.initStepSize = 3.0
+  options.stepSizeReduction = 0.25
+  options.numRounds = 20
+  options.regularization = 0.25
+  options.featureExtractor = 'custom'
 
 if __name__ == '__main__':
   util.runLearner(sys.modules[__name__], sys.argv[1:])
