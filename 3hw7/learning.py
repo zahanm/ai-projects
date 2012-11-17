@@ -4,6 +4,7 @@ from math import exp, log
 from util import Counter
 
 import itertools
+import re
 
 ############################################################
 # Feature extractors: a feature extractor should take a raw input x (tuple of
@@ -19,10 +20,52 @@ def basicFeatureExtractor(x):
 
   return featureVector
 
+URL_PATTERN = re.compile(
+  r"""
+  \w{3,5}:\/\/ # domain
+  (?P<host>[\w\-\.]+) # host
+  (?P<path>(\/[\w\-]*)*) # path
+  """, re.X)
+FULLNAME_PATTERN = re.compile(
+  r"""
+  [\w\-]+\s+ # firstname
+  \w\.\s+ # middle initial
+  [\w\-]+\s* # lastname
+  """, re.X)
+def isNotSpace(s):
+  return len(s.strip()) > 0
+
 def customFeatureExtractor(x):
   url, title = x
   featureVector = util.Counter()
-  "*** YOUR CODE HERE (around 25 lines of code expected) ***"
+
+  # url
+  # ---
+  m = URL_PATTERN.match(url)
+
+  if m != None:
+    for subdomain in filter(isNotSpace, m.group('host').split('.')):
+      featureVector['url:' + subdomain] += 1
+
+    for subpath in filter(isNotSpace, m.group('path').split('/')):
+      featureVector['url:' + subpath] += 1
+
+  for token in url.split('/'):
+    featureVector['url:' + token] += 1
+
+  if '~' in url:
+    featureVector['url:tilde'] += 1
+  if ':' in url:
+    featureVector['url:colon'] += 1
+
+  # title
+  # -----
+  for word in filter(isNotSpace, re.split(r"\s+", title)):
+    featureVector['title:' + word] += 1
+
+  if FULLNAME_PATTERN.match(title):
+    featureVector['title:fullname'] += 1
+
   return featureVector
 
 ############################################################
