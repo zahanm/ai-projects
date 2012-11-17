@@ -227,7 +227,8 @@ class StochasticGradientLearner():
         if (options.regularization > 0):
           c = float(options.regularization) / len(trainExamples)
           for fKey in self.weights.iterkeys():
-            self.weights[fKey] -= stepSize * (lossGrad[fKey] + c * self.weights[fKey])
+            if self.weights[fKey] > 0 or lossGrad[fKey] > 0:
+              self.weights[fKey] -= stepSize * (lossGrad[fKey] + c * self.weights[fKey])
         else:
           for fKey, fLoss in lossGrad.iteritems():
             self.weights[fKey] -= stepSize * fLoss
@@ -243,7 +244,8 @@ class StochasticGradientLearner():
         featureVector = self.featureExtractor(x)
         trainLoss += loss(featureVector, y, self.weights)
       for weight in self.weights.itervalues():
-        regularizationPenalty += weight ** 2
+        if weight > 0:
+          regularizationPenalty += weight ** 2
       regularizationPenalty *= 0.5 * options.regularization
       self.objective = trainLoss + regularizationPenalty
 
