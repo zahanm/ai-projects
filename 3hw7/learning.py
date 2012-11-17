@@ -288,7 +288,7 @@ def setTunedOptions(options):
   options.loss = 'logistic'
   options.initStepSize = 3.0
   options.stepSizeReduction = 0.25
-  options.numRounds = 20
+  options.numRounds = 12
   options.regularization = 0.25
   options.featureExtractor = 'custom'
 
