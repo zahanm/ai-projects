@@ -54,7 +54,7 @@ def customFeatureExtractor(x):
     featureVector['url:' + token] += 1
 
   if '~' in url:
-    featureVector['url:tilde'] += 1
+    featureVector['url:TILDE'] += 1
 
   # title
   # -----
@@ -62,10 +62,10 @@ def customFeatureExtractor(x):
     featureVector['title:' + word] += 1
 
   if FULLNAME_PATTERN.match(title):
-    featureVector['title:fullname'] += 1
+    featureVector['title:FULLNAME'] += 1
 
   if ':' in title:
-    featureVector['title:colon'] += 1
+    featureVector['title:COLON'] += 1
 
   return featureVector
 
@@ -290,7 +290,7 @@ def setTunedOptions(options):
   options.initStepSize = 3.0
   options.stepSizeReduction = 0.25
   options.numRounds = 12
-  options.regularization = 0.25
+  options.regularization = 0
   options.featureExtractor = 'custom'
 
 if __name__ == '__main__':
