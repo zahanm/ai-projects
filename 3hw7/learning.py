@@ -55,8 +55,6 @@ def customFeatureExtractor(x):
 
   if '~' in url:
     featureVector['url:tilde'] += 1
-  if ':' in url:
-    featureVector['url:colon'] += 1
 
   # title
   # -----
@@ -65,6 +63,9 @@ def customFeatureExtractor(x):
 
   if FULLNAME_PATTERN.match(title):
     featureVector['title:fullname'] += 1
+
+  if ':' in title:
+    featureVector['title:colon'] += 1
 
   return featureVector
 
