@@ -1,5 +1,5 @@
-AI Class at Stanford University
-===============================
+AI Class
+========
 
 All the projects through the quarter.
 Autumn 2012-13.
